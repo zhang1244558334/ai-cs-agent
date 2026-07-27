@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 .env
 dist/
+*.egg-info/
 node_modules/
 .vscode/
 .idea/

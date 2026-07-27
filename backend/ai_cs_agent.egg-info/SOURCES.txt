@@ -1,7 +1,0 @@
-README.md
-pyproject.toml
-backend/ai_cs_agent.egg-info/PKG-INFO
-backend/ai_cs_agent.egg-info/SOURCES.txt
-backend/ai_cs_agent.egg-info/dependency_links.txt
-backend/ai_cs_agent.egg-info/requires.txt
-backend/ai_cs_agent.egg-info/top_level.txt
