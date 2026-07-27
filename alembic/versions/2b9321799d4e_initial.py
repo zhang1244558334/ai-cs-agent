@@ -1,19 +1,18 @@
 """initial
 
-Revision ID: deeb07ee28b3
+Revision ID: 2b9321799d4e
 Revises: 
-Create Date: 2026-07-27 15:51:46.521170
+Create Date: 2026-07-27 16:42:22.041181
 
 """
 from typing import Sequence, Union
 
+from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
-from alembic import op
-
 # revision identifiers, used by Alembic.
-revision: str = 'deeb07ee28b3'
+revision: str = '2b9321799d4e'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -54,7 +53,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_sessions_platform'), 'sessions', ['platform'], unique=False)
     op.create_index(op.f('ix_sessions_user_id'), 'sessions', ['user_id'], unique=False)
     op.create_table('bargain_logs',
-    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
+    sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('session_id', sa.String(length=36), nullable=False),
     sa.Column('round', sa.Integer(), nullable=False),
     sa.Column('user_offer', sa.Float(), nullable=False),
@@ -68,7 +67,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_bargain_logs_session_id'), 'bargain_logs', ['session_id'], unique=False)
     op.create_table('handover_logs',
-    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
+    sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('session_id', sa.String(length=36), nullable=False),
     sa.Column('switched_by', sa.String(length=32), nullable=False),
     sa.Column('from_mode', sa.String(length=16), nullable=False),
@@ -80,7 +79,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_handover_logs_session_id'), 'handover_logs', ['session_id'], unique=False)
     op.create_table('messages',
-    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
+    sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('session_id', sa.String(length=36), nullable=False),
     sa.Column('role', sa.String(length=16), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),

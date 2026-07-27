@@ -1,6 +1,7 @@
+import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core.database import Base
@@ -9,7 +10,9 @@ from ..core.database import Base
 class HandoverLog(Base):
     __tablename__ = "handover_logs"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
     session_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("sessions.id"), index=True
     )
