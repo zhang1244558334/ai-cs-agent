@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 
 from app.core.config import settings
 from app.core.llm import LLMClient

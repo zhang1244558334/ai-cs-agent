@@ -1,7 +1,6 @@
-from sqlalchemy import select
-
 from app.core.database import async_session
 from app.models.session import Session
+from sqlalchemy import select
 
 
 class SessionMapper:

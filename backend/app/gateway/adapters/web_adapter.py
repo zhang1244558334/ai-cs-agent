@@ -1,4 +1,4 @@
-from ..interfaces.bot_platform import IBotPlatform, BotMessage, BotStatus
+from ..interfaces.bot_platform import BotMessage, BotStatus, IBotPlatform
 
 
 class WebAdapter(IBotPlatform):
