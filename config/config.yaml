@@ -22,8 +22,8 @@ knowledge:
     port: ${CHROMA_PORT}
     collection: ${CHROMA_COLLECTION}
   embedding:
-    model: text-embedding-3-small
-    dimension: 1536
+    model: BAAI/bge-small-zh-v1.5
+    dimension: 384
 
 agents:
   langgraph:
