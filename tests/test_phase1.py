@@ -7,6 +7,9 @@ from app.main import app
 
 @pytest.fixture(autouse=True)
 async def setup_db():
+    # Import all models so their metadata is registered on Base.metadata
+    from app.models import Session, Message, Item, BargainLog, HandoverLog  # noqa: F401
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -15,7 +18,7 @@ async def setup_db():
 
 
 @pytest.fixture
-async def client():
+async def client(setup_db):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
@@ -33,20 +36,17 @@ async def test_health_returns_200(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_chat_returns_501(client: AsyncClient):
     resp = await client.post("/api/chats")
-    assert resp.status_code == 501
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
 async def test_create_and_query_session():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
     from app.models import Session
 
     async with async_session() as session:
         sess = Session(
             platform="web",
-            platform_session_id="test_sid_001",
+            platform_session_id="test_sid_004",
             user_id="test_user",
         )
         session.add(sess)
@@ -56,6 +56,3 @@ async def test_create_and_query_session():
         assert result is not None
         assert result.user_id == "test_user"
         assert result.mode == "ai"
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)

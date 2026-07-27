@@ -17,6 +17,7 @@ if config.config_file_name is not None:
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 from app.core.database import Base
+from app.models import Session, Message, Item, BargainLog, HandoverLog  # noqa: F401
 
 target_metadata = Base.metadata
 

@@ -1,0 +1,16 @@
+intents:
+  price:
+    keywords: ["多少钱", "便宜", "优惠", "砍价", "少点", "打折", "价格"]
+    patterns: ["\\d+元", "能少\\d+", "最低.*价格"]
+    priority: 2
+  tech:
+    keywords: ["参数", "规格", "型号", "适配", "兼容", "内存", "续航"]
+    patterns: ["怎么(用|装|设置)", "(保修|售后|维修).*(多久|怎么)"]
+    priority: 1
+  after_sale:
+    keywords: ["退货", "退款", "换货", "坏了", "破损", "发错", "漏发"]
+    patterns: ["我要退", "怎么退", "不想要了"]
+  handover:
+    keywords: ["人工", "客服", "转人工", "真人", "投诉"]
+  no_reply:
+    enable: true

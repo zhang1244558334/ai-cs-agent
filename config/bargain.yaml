@@ -1,0 +1,7 @@
+max_discount_ratio: 0.1
+temperature_start: 0.3
+temperature_step: 0.15
+temperature_max: 0.9
+max_rounds: 5
+min_offer_ratio: 0.85
+auto_accept_ratio: 0.95
