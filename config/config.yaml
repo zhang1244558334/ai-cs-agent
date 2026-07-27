@@ -1,0 +1,52 @@
+app:
+  name: ai-cs-agent
+  version: 0.1.0
+  debug: false
+
+server:
+  host: 0.0.0.0
+  port: 8000
+
+llm:
+  provider: openai
+  api_key: ${LLM_API_KEY}
+  base_url: ${LLM_BASE_URL}
+  model: ${LLM_MODEL}
+  temperature: 0.7
+  max_tokens: 4096
+
+knowledge:
+  vector_store:
+    provider: chromadb
+    host: ${CHROMA_HOST}
+    port: ${CHROMA_PORT}
+    collection: ${CHROMA_COLLECTION}
+  embedding:
+    model: text-embedding-3-small
+    dimension: 1536
+
+agents:
+  langgraph:
+    flows_dir: backend/app/agents/langgraph_flows
+    max_iterations: 10
+    timeout_seconds: 60
+
+gateway:
+  adapters_dir: backend/app/gateway/adapters
+  services_dir: backend/app/gateway/services
+  interfaces_dir: backend/app/gateway/interfaces
+
+human_handover:
+  enabled: true
+  escalation_threshold: 3
+  notify_channel: support
+
+safety:
+  guardrails_enabled: true
+  max_input_length: 4096
+  sensitive_topics: []
+
+observability:
+  logging:
+    level: ${LOG_LEVEL}
+    format: json

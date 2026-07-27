@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+dist/
+node_modules/
+.vscode/
+.idea/
+*.db
+chroma_data/
+.pytest_cache/
+.ruff_cache/
