@@ -4,9 +4,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .api.routes import chat_router, knowledge_router, sessions_router
 from .core.config import settings
 from .core.exceptions import AppException
-from .api.routes import chat_router, knowledge_router, sessions_router
 
 
 @asynccontextmanager

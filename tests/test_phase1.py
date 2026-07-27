@@ -38,6 +38,9 @@ async def test_chat_returns_501(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_create_and_query_session():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     from app.models import Session
 
     async with async_session() as session:
@@ -53,3 +56,6 @@ async def test_create_and_query_session():
         assert result is not None
         assert result.user_id == "test_user"
         assert result.mode == "ai"
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)

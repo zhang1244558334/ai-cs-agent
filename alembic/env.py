@@ -2,8 +2,7 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
@@ -18,7 +17,7 @@ if config.config_file_name is not None:
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 from app.core.database import Base
-from app.models import Session, Message, Item, BargainLog, HandoverLog
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
