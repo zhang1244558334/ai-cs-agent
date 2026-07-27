@@ -39,3 +39,24 @@ class LLMClient:
                     time.sleep(delay)
         logger.error(f"LLM call failed after 3 attempts: {last_error}")
         return "抱歉，我现在处理不过来，请稍后再试。"
+
+    async def chat_stream(
+        self, messages: list, temperature: float | None = None
+    ):
+        try:
+            resp = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature or self.temperature,
+                max_tokens=self.max_tokens,
+                timeout=30,
+                stream=True,
+            )
+            async for chunk in resp:
+                delta = chunk.choices[0].delta if chunk.choices else None
+                if delta and delta.content:
+                    yield delta.content
+            yield "[DONE]"
+        except Exception as e:
+            logger.error(f"LLM stream failed: {e}")
+            yield "[DONE]"

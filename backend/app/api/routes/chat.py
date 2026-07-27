@@ -1,8 +1,14 @@
+import json
+
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.agents.default_agent import DefaultAgent
 from app.agents.price_agent import PriceAgent
+from app.core.database import async_session
 from app.gateway.services.session_mapper import SessionMapper
+from app.models.bargain_log import BargainLog
+from app.models.message import Message
 from app.router.router import Router
 
 router = APIRouter()
@@ -28,11 +34,51 @@ async def chat(
         platform, platform_session_id or "default", user_id or "anonymous"
     )
 
-    if intent == "price":
-        reply = await price_agent.generate(
-            message, extra_context={"bargain_count": sess.bargain_count}
+    async with async_session() as db:
+        user_msg = Message(
+            session_id=sess.id, role="user", content=message, content_type="text"
         )
-    else:
-        reply = await default_agent.generate(message)
+        db.add(user_msg)
+        await db.commit()
 
-    return {"intent": intent, "reply": reply, "session_id": sess.id}
+    async def generate():
+        full_reply = ""
+        agent = price_agent if intent == "price" else default_agent
+        system_msg = {
+            "role": "system",
+            "content": "你是电商客服助手。回复简洁友好，不超过50字。",
+        }
+        msgs = [system_msg, {"role": "user", "content": message}]
+        async for token in agent.llm.chat_stream(msgs):
+            if token == "[DONE]":
+                break
+            full_reply += token
+            yield f"data: {json.dumps({'token': token, 'intent': intent})}\n\n"
+        yield (
+            f"data: {json.dumps({'done': True, 'intent': intent, 'session_id': sess.id})}\n\n"
+        )
+
+        async with async_session() as db:
+            reply_msg = Message(
+                session_id=sess.id,
+                role="assistant",
+                content=full_reply,
+                content_type="text",
+                extra_metadata={"intent": intent},
+            )
+            db.add(reply_msg)
+            await db.commit()
+
+            if intent == "price":
+                log = BargainLog(
+                    session_id=sess.id,
+                    round=sess.bargain_count + 1,
+                    user_offer=0,
+                    agent_offer=0,
+                    result="pending",
+                )
+                db.add(log)
+                sess.bargain_count += 1
+                await db.commit()
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
