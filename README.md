@@ -9,7 +9,7 @@
 - 数据库：SQLite
 
 ## 前置依赖
-- Python 3.11+
+- Python 3.10+
 - Node 18+
 - Docker
 
