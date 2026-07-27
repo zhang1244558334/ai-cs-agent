@@ -1,0 +1,25 @@
+from datetime import datetime
+
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy.dialects.sqlite import JSON
+from sqlalchemy.orm import Mapped, mapped_column
+
+from ..core.database import Base
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("sessions.id"), index=True
+    )
+    role: Mapped[str] = mapped_column(String(16))
+    content: Mapped[str] = mapped_column(Text)
+    content_type: Mapped[str] = mapped_column(String(16), default="text")
+    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_messages_session_created", "session_id", "created_at"),
+    )
