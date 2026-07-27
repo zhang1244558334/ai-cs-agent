@@ -2,7 +2,7 @@
 name = "ai-cs-agent"
 version = "0.1.0"
 description = "AI 智能客服系统"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
@@ -22,7 +22,11 @@ dependencies = [
 
 [build-system]
 requires = ["setuptools>=75.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta:__legacy__"
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+include = ["backend.app*"]
 
 [tool.ruff]
 line-length = 100
