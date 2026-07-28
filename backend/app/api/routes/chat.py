@@ -13,6 +13,8 @@ from app.router.router import Router
 from app.safety.keyword_filter import filter_output
 from app.safety.prompt_injection import detect_injection
 
+SHADOW_MODE = False
+
 router = APIRouter()
 route_engine = Router()
 default_agent = DefaultAgent()
@@ -55,6 +57,7 @@ async def chat(
             yield f"data: {json.dumps({'token': full_reply, 'intent': intent})}\n\n"
             yield f"data: {json.dumps({'done': True, 'intent': intent, 'session_id': sess.id})}\n\n"
             return
+
         agent = price_agent if intent == "price" else default_agent
         system_msg = {
             "role": "system",
@@ -64,23 +67,21 @@ async def chat(
         async for token in agent.llm.chat_stream(msgs):
             if token == "[DONE]":
                 break
-            # 输出安全过滤
             token = filter_output(token)
             full_reply += token
-            yield f"data: {json.dumps({'token': token, 'intent': intent})}\n\n"
-        yield (
-            f"data: {json.dumps({'done': True, 'intent': intent, 'session_id': sess.id})}\n\n"
-        )
+            # 影子模式不推送 token 给用户
+            if not SHADOW_MODE:
+                yield f"data: {json.dumps({'token': token, 'intent': intent})}\n\n"
+
+        full_reply = filter_output(full_reply)
 
         async with async_session() as db:
-            # 完整回复再过滤一次（防止跨 token 漏检）
-            full_reply = filter_output(full_reply)
             reply_msg = Message(
                 session_id=sess.id,
                 role="assistant",
                 content=full_reply,
                 content_type="text",
-                extra_metadata={"intent": intent},
+                extra_metadata={"intent": intent, "shadow": SHADOW_MODE},
             )
             db.add(reply_msg)
             await db.commit()
@@ -96,5 +97,7 @@ async def chat(
                 db.add(log)
                 sess.bargain_count += 1
                 await db.commit()
+
+        yield f"data: {json.dumps({'done': True, 'intent': intent, 'session_id': sess.id, 'shadow': SHADOW_MODE})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
