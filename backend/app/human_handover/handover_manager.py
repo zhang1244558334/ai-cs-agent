@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy import text
 
@@ -50,10 +50,11 @@ class HandoverManager:
                 )
             ).fetchone()
             if log:
-                elapsed = (
-                    datetime.utcnow()
-                    - datetime.fromisoformat(log[0])
-                ).total_seconds()
+                created_at_str = str(log[0])
+                created_at = datetime.strptime(
+                    created_at_str.split(".")[0], "%Y-%m-%d %H:%M:%S"
+                )
+                elapsed = (datetime.utcnow() - created_at).total_seconds()
                 if elapsed > timeout:
                     sess = await db.get(Session, session_id)
                     if sess and sess.mode == "human":
