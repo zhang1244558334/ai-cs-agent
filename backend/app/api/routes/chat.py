@@ -10,6 +10,8 @@ from app.gateway.services.session_mapper import SessionMapper
 from app.models.bargain_log import BargainLog
 from app.models.message import Message
 from app.router.router import Router
+from app.safety.keyword_filter import filter_output
+from app.safety.prompt_injection import detect_injection
 
 router = APIRouter()
 route_engine = Router()
@@ -28,7 +30,11 @@ async def chat(
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
-    intent = await route_engine.route(message)
+    # 安全检测：注入拦截
+    if detect_injection(message):
+        intent = "no_reply"
+    else:
+        intent = await route_engine.route(message)
 
     sess = await session_mapper.get_or_create(
         platform, platform_session_id or "default", user_id or "anonymous"
@@ -52,6 +58,8 @@ async def chat(
         async for token in agent.llm.chat_stream(msgs):
             if token == "[DONE]":
                 break
+            # 输出安全过滤
+            token = filter_output(token)
             full_reply += token
             yield f"data: {json.dumps({'token': token, 'intent': intent})}\n\n"
         yield (
