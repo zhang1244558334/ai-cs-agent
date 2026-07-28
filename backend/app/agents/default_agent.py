@@ -7,6 +7,6 @@ class DefaultAgent(BaseAgent):
     ) -> list:
         system = {
             "role": "system",
-            "content": "你是电商客服助手。回复简洁友好，不超过50字。不知道的不要说。",
+            "content": "你是智能客服助手。如果是电商相关问题，友好解答。如果是其他问题（天气、问候、闲聊等），也可以正常回答，保持简洁。不超过50字。",
         }
         return [system] + context + [{"role": "user", "content": user_msg}]

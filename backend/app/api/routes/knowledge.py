@@ -1,21 +1,13 @@
 import os
-import tempfile
+import shutil
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.knowledge.keyword_retriever import KeywordRetriever
 from app.knowledge.loader import load_document
-from app.knowledge.vector_store import VectorStore
 
 router = APIRouter()
-_vs: VectorStore | None = None
-
-
-def get_vs() -> VectorStore:
-    global _vs
-    if _vs is None:
-        _vs = VectorStore()
-    return _vs
+DOCS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "docs"))
 
 
 @router.post("/api/knowledge")
@@ -24,47 +16,41 @@ async def upload_doc(file: UploadFile = File(...)):
     if ext not in [".md", ".txt", ".csv", ".html"]:
         raise HTTPException(400, f"Unsupported file type: {ext}")
     content = await file.read()
-    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-        tmp.write(content)
-        tmp_path = tmp.name
-    try:
-        docs = load_document(tmp_path)
-        get_vs().add_documents(docs)
-        return {
-            "message": f"Uploaded {len(docs)} chunks from {file.filename}",
-            "chunks": len(docs),
-        }
-    finally:
-        os.unlink(tmp_path)
+    dest = os.path.join(DOCS_DIR, file.filename)
+    with open(dest, "wb") as f:
+        f.write(content)
+    return {"message": f"Uploaded {file.filename}", "chunks": len(load_document(dest))}
 
 
 @router.get("/api/knowledge")
 async def list_docs():
-    return {"documents": get_vs().list_documents()}
+    if not os.path.exists(DOCS_DIR):
+        return {"documents": []}
+    files = [
+        f for f in os.listdir(DOCS_DIR)
+        if f.endswith((".md", ".txt", ".csv", ".html"))
+    ]
+    return {"documents": files}
 
 
 @router.delete("/api/knowledge/{source}")
 async def delete_doc(source: str):
-    get_vs().delete_document(source)
-    return {"message": f"Deleted: {source}"}
+    filepath = os.path.join(DOCS_DIR, source)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        return {"message": f"Deleted: {source}"}
+    raise HTTPException(404, f"File not found: {source}")
 
 
 @router.patch("/api/knowledge/{source}")
 async def update_doc(source: str, file: UploadFile = File(...)):
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in [".md", ".txt", ".csv", ".html"]:
-        raise HTTPException(400, f"Unsupported: {ext}")
-    get_vs().delete_document(source)
+    filepath = os.path.join(DOCS_DIR, source)
+    if not os.path.exists(filepath):
+        raise HTTPException(404, f"File not found: {source}")
     content = await file.read()
-    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-        tmp.write(content)
-        tmp_path = tmp.name
-    try:
-        docs = load_document(tmp_path)
-        get_vs().add_documents(docs)
-        return {"message": f"Updated {len(docs)} chunks", "chunks": len(docs)}
-    finally:
-        os.unlink(tmp_path)
+    with open(filepath, "wb") as f:
+        f.write(content)
+    return {"message": f"Updated {source}"}
 
 
 @router.post("/api/knowledge/search")
