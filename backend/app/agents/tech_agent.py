@@ -1,4 +1,4 @@
-from app.knowledge.retriever import Retriever
+from app.knowledge.keyword_retriever import KeywordRetriever
 
 from .base_agent import BaseAgent
 
@@ -6,7 +6,7 @@ from .base_agent import BaseAgent
 class TechAgent(BaseAgent):
     def __init__(self, llm_client=None):
         super().__init__(llm_client)
-        self.retriever = Retriever()
+        self.retriever = KeywordRetriever()
 
     async def generate(
         self,

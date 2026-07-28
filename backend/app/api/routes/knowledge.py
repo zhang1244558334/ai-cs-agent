@@ -3,6 +3,7 @@ import tempfile
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
+from app.knowledge.keyword_retriever import KeywordRetriever
 from app.knowledge.loader import load_document
 from app.knowledge.vector_store import VectorStore
 
@@ -68,5 +69,6 @@ async def update_doc(source: str, file: UploadFile = File(...)):
 
 @router.post("/api/knowledge/search")
 async def search_knowledge(query: str, top_k: int = 3):
-    results = get_vs().search(query, top_k=top_k)
+    kr = KeywordRetriever()
+    results = await kr.retrieve(query, top_k=top_k)
     return {"results": results}
