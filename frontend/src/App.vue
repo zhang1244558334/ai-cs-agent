@@ -13,6 +13,7 @@
         <el-menu-item index="/">对话</el-menu-item>
         <el-menu-item index="/sessions">会话</el-menu-item>
         <el-menu-item index="/knowledge">知识库</el-menu-item>
+        <el-menu-item index="/settings">设置</el-menu-item>
       </el-menu>
     </el-header>
     <el-main>

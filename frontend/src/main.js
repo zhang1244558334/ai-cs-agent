@@ -11,6 +11,7 @@ const router = createRouter({
     { path: '/', component: () => import('./views/Chat.vue') },
     { path: '/knowledge', component: () => import('./views/Knowledge.vue') },
     { path: '/sessions', component: () => import('./views/Sessions.vue') },
+    { path: '/settings', component: () => import('./views/Settings.vue') },
   ],
 })
 

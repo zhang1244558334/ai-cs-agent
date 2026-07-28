@@ -109,7 +109,13 @@ async def chat(
             return
 
         # 普通 Agent 回复
-        agent = price_agent if intent == "price" else default_agent
+        if intent == "after_sale":
+            from app.agents.after_sale_agent import AfterSaleAgent
+            agent = AfterSaleAgent()
+        elif intent == "price":
+            agent = price_agent
+        else:
+            agent = default_agent
         system_msg = {
             "role": "system",
             "content": "你是电商客服助手。回复简洁友好，不超过50字。",
