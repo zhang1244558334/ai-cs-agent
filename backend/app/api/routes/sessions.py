@@ -1,31 +1,113 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from sqlalchemy import select
+
+from app.core.database import async_session
+from app.models.message import Message
+from app.models.session import Session
 
 router = APIRouter()
 
 
 @router.get("/api/sessions")
-async def list_sessions():
-    from fastapi import HTTPException
-
-    raise HTTPException(status_code=501, detail="Not Implemented")
+async def list_sessions(limit: int = 20, offset: int = 0):
+    async with async_session() as db:
+        result = await db.execute(
+            select(Session).order_by(Session.updated_at.desc()).offset(offset).limit(limit)
+        )
+        sessions = result.scalars().all()
+        return [
+            {
+                "id": s.id,
+                "platform": s.platform,
+                "platform_session_id": s.platform_session_id,
+                "user_id": s.user_id,
+                "item_id": s.item_id,
+                "mode": s.mode,
+                "last_intent": s.last_intent,
+                "bargain_count": s.bargain_count,
+                "created_at": str(s.created_at) if s.created_at else None,
+                "updated_at": str(s.updated_at) if s.updated_at else None,
+            }
+            for s in sessions
+        ]
 
 
 @router.post("/api/sessions")
-async def create_session():
-    from fastapi import HTTPException
-
-    raise HTTPException(status_code=501, detail="Not Implemented")
+async def create_session(
+    platform: str = "web",
+    platform_session_id: str = "",
+    user_id: str = "",
+):
+    async with async_session() as db:
+        sess = Session(
+            platform=platform,
+            platform_session_id=platform_session_id or f"auto_{user_id}",
+            user_id=user_id or "anonymous",
+        )
+        db.add(sess)
+        await db.commit()
+        await db.refresh(sess)
+        return {
+            "id": sess.id,
+            "platform": sess.platform,
+            "user_id": sess.user_id,
+            "mode": sess.mode,
+            "created_at": str(sess.created_at),
+        }
 
 
 @router.get("/api/sessions/{id}")
 async def get_session(id: str):
-    from fastapi import HTTPException
-
-    raise HTTPException(status_code=501, detail="Not Implemented")
+    async with async_session() as db:
+        s = await db.get(Session, id)
+        if not s:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return {
+            "id": s.id,
+            "platform": s.platform,
+            "platform_session_id": s.platform_session_id,
+            "user_id": s.user_id,
+            "item_id": s.item_id,
+            "mode": s.mode,
+            "last_intent": s.last_intent,
+            "bargain_count": s.bargain_count,
+            "created_at": str(s.created_at) if s.created_at else None,
+            "updated_at": str(s.updated_at) if s.updated_at else None,
+        }
 
 
 @router.patch("/api/sessions/{id}")
-async def update_session(id: str):
-    from fastapi import HTTPException
+async def update_session(id: str, mode: str | None = None):
+    async with async_session() as db:
+        s = await db.get(Session, id)
+        if not s:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if mode:
+            s.mode = mode
+        await db.commit()
+        return {"id": s.id, "mode": s.mode}
 
-    raise HTTPException(status_code=501, detail="Not Implemented")
+
+@router.get("/api/sessions/{id}/messages")
+async def get_session_messages(id: str, limit: int = 50):
+    async with async_session() as db:
+        s = await db.get(Session, id)
+        if not s:
+            raise HTTPException(status_code=404, detail="Session not found")
+        result = await db.execute(
+            select(Message)
+            .where(Message.session_id == id)
+            .order_by(Message.created_at.asc())
+            .limit(limit)
+        )
+        messages = result.scalars().all()
+        return [
+            {
+                "id": m.id,
+                "role": m.role,
+                "content": m.content,
+                "content_type": m.content_type,
+                "created_at": str(m.created_at) if m.created_at else None,
+            }
+            for m in messages
+        ]
