@@ -33,6 +33,10 @@ async def chat(
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
+    # 输入长度限制
+    if len(message) > 500:
+        raise HTTPException(status_code=400, detail="message too long (max 500 characters)")
+
     # 安全检测：注入拦截
     if detect_injection(message):
         intent = "no_reply"
