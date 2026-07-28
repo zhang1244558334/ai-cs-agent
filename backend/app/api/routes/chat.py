@@ -49,6 +49,12 @@ async def chat(
 
     async def generate():
         full_reply = ""
+        # 注入/no_reply 不调 LLM
+        if intent == "no_reply":
+            full_reply = "抱歉，我无法回答这个问题。如有需要请转人工客服。"
+            yield f"data: {json.dumps({'token': full_reply, 'intent': intent})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'intent': intent, 'session_id': sess.id})}\n\n"
+            return
         agent = price_agent if intent == "price" else default_agent
         system_msg = {
             "role": "system",
@@ -67,6 +73,8 @@ async def chat(
         )
 
         async with async_session() as db:
+            # 完整回复再过滤一次（防止跨 token 漏检）
+            full_reply = filter_output(full_reply)
             reply_msg = Message(
                 session_id=sess.id,
                 role="assistant",
