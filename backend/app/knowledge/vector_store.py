@@ -9,14 +9,23 @@ class VectorStore:
         port: int = 8001,
         collection_name: str = "knowledge_base",
     ):
-        self.client = chromadb.HttpClient(
-            host=host,
-            port=port,
-            settings=ChromaSettings(anonymized_telemetry=False),
-        )
-        self.collection = self.client.get_or_create_collection(name=collection_name)
+        try:
+            self.client = chromadb.HttpClient(
+                host=host,
+                port=port,
+                settings=ChromaSettings(anonymized_telemetry=False),
+            )
+            self.collection = self.client.get_or_create_collection(name=collection_name)
+            self.available = True
+        except Exception as e:
+            print(f"[VectorStore] Chroma not available, running in degraded mode: {e}")
+            self.available = False
+            self._memory: list[dict] = []
 
     def add_documents(self, documents: list[dict]):
+        if not self.available:
+            self._memory.extend(documents)
+            return
         ids = [
             f"{doc['metadata']['source']}_{doc['metadata']['chunk_index']}"
             for doc in documents
@@ -26,6 +35,8 @@ class VectorStore:
         self.collection.add(documents=texts, metadatas=metadatas, ids=ids)
 
     def search(self, query: str, top_k: int = 3) -> list[dict]:
+        if not self.available:
+            return []
         results = self.collection.query(query_texts=[query], n_results=top_k)
         docs = []
         if results["documents"]:
@@ -44,9 +55,13 @@ class VectorStore:
         return docs
 
     def delete_document(self, doc_id: str):
+        if not self.available:
+            return
         self.collection.delete(where={"source": doc_id})
 
     def list_documents(self) -> list[str]:
+        if not self.available:
+            return []
         results = self.collection.get()
         sources = set()
         if results["metadatas"]:

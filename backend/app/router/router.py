@@ -1,3 +1,4 @@
+from ..agents.langgraph_flows.complaint_flow import complaint_graph
 from .keyword_matcher import KeywordMatcher
 from .llm_classifier import LLMClassifier
 from .regex_matcher import RegexMatcher
@@ -19,3 +20,13 @@ class Router:
         if rx:
             return rx
         return await self.llm_classifier.classify(text)
+
+    async def route_with_graph(
+        self, text: str, session_id: str = ""
+    ) -> tuple[str, str | None]:
+        intent = await self.route(text)
+        if intent == "after_sale":
+            complaint_kw = ["投诉", "退货", "退款"]
+            if any(kw in text for kw in complaint_kw):
+                return "complaint", session_id
+        return intent, None
