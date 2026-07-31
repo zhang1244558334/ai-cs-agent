@@ -160,3 +160,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 全链路实测（TestClient）：上传 → 检索命中；更新 → 新内容生效、旧内容无残留；删除 → 向量同步清除。验证用纯英文查询词，关键词检索路必空，命中必来自向量库，证明向量同步真实生效
 - pytest backend/tests/：14 passed；pytest tests/：25 passed，均不回归
 - 只改 backend/app/api/routes/knowledge.py；新增代码零 ruff 告警
+
+## 2026-07-31 — 路由误判补完：账号类归 default + LLM 分类器补 logistics
+
+背景：逐项核对开发问题日志时实测发现，问题9 路由误判表 3 条只修了 1 条——"账号被盗了怎么办"仍被路由到 after_sale。
+
+### Fixed
+- **LLM 分类器 prompt 缺陷**：无 logistics 意图定义、账号类无归属说明，"账号被盗"被判为售后。prompt 补 logistics 定义 + 账号类归 default + 两条边界说明；valid 意图列表补 logistics（否则分类结果被丢弃回落 default）
+- **向量层兜底**：intent_examples 重建，default 示例 40→45 条（补账号被盗/密码忘了/冻结/注销/登不上），账号类问题走向量匹配稳定归类，不依赖 LLM
+
+### Verified
+- 路由实测 15 用例全过：5 账号类→default、3 物流→logistics、3 售后→after_sale、4 基准不回归
+- pytest backend/tests/：14 passed；pytest tests/：25 passed
+- 开发问题日志问题9 补记修复过程
