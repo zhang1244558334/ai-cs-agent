@@ -14,6 +14,9 @@
         <el-menu-item index="/sessions">会话</el-menu-item>
         <el-menu-item index="/knowledge">知识库</el-menu-item>
         <el-menu-item index="/settings">设置</el-menu-item>
+        <el-menu-item index="/review">审批</el-menu-item>
+        <el-menu-item index="/tenants">租户</el-menu-item>
+        <el-menu-item index="/test">🧪 测试</el-menu-item>
       </el-menu>
     </el-header>
     <el-main>

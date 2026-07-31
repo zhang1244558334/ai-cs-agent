@@ -14,6 +14,7 @@ class Session(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
+    tenant_id: Mapped[str] = mapped_column(String(36), default='single')
     platform: Mapped[str] = mapped_column(String(32), index=True)
     platform_session_id: Mapped[str] = mapped_column(String(128), unique=True)
     user_id: Mapped[str] = mapped_column(String(64), index=True)

@@ -1,4 +1,4 @@
-.PHONY: install run run-dev test lint format clean docker-up docker-down
+.PHONY: install run run-dev test check lint format clean docker-up docker-down
 
 install:
 	pip install -e .
@@ -11,6 +11,9 @@ run-dev:
 
 test:
 	pytest -v
+
+check:
+	python3 scripts/dead_code_check.py
 
 lint:
 	ruff check .

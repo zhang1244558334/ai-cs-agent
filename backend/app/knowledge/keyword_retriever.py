@@ -65,9 +65,11 @@ class KeywordRetriever:
             if word in text:
                 tokens.append(word)
         if not tokens:
-            # 按字切分作为后备
+            # 按字切分作为后备（只保留含中文的片段，避免英文品牌名误匹配）
             for i in range(len(text) - 1):
-                tokens.append(text[i : i + 2])
+                token = text[i : i + 2]
+                if re.search(r"[\u4e00-\u9fff]", token):
+                    tokens.append(token)
         return list(set(tokens))
 
     def _find_relevant_snippet(self, text: str, keywords: list[str]) -> str:

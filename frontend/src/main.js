@@ -12,6 +12,9 @@ const router = createRouter({
     { path: '/knowledge', component: () => import('./views/Knowledge.vue') },
     { path: '/sessions', component: () => import('./views/Sessions.vue') },
     { path: '/settings', component: () => import('./views/Settings.vue') },
+    { path: '/review', component: () => import('./views/Review.vue') },
+    { path: '/tenants', component: () => import('./views/Tenants.vue') },
+    { path: '/test', component: () => import('./views/TestCenter.vue') },
   ],
 })
 

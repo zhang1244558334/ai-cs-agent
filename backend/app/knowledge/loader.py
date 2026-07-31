@@ -13,7 +13,7 @@ def chunk_text(text: str, chunk_size: int = 512, overlap: int = 32) -> list[str]
     return chunks
 
 
-def load_document(file_path: str) -> list[dict]:
+def load_document(file_path: str, tenant_id: str = "single", is_public: bool = False) -> list[dict]:
     ext = os.path.splitext(file_path)[1].lower()
     if ext not in SUPPORTED_EXTS:
         raise ValueError(f"Unsupported file type: {ext}")
@@ -23,7 +23,12 @@ def load_document(file_path: str) -> list[dict]:
     return [
         {
             "text": chunk,
-            "metadata": {"source": file_path, "chunk_index": i},
+            "metadata": {
+                "source": file_path,
+                "chunk_index": i,
+                "tenant_id": tenant_id,
+                "is_public": is_public,
+            },
         }
         for i, chunk in enumerate(chunks)
     ]

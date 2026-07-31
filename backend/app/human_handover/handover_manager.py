@@ -18,7 +18,8 @@ class HandoverManager:
         return False
 
     async def switch_to_human(
-        self, session_id: str, reason: str = "user_requested"
+        self, session_id: str, reason: str = "user_requested",
+        routing_result: str = "", human_response: str = "",
     ):
         async with async_session() as db:
             sess = await db.get(Session, session_id)
@@ -31,6 +32,8 @@ class HandoverManager:
                     from_mode=old_mode,
                     to_mode="human",
                     reason=reason,
+                    routing_result=routing_result,
+                    human_response=human_response,
                 )
                 db.add(log)
                 await db.commit()

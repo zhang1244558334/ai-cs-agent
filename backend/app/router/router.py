@@ -1,4 +1,5 @@
 from ..agents.langgraph_flows.complaint_flow import complaint_graph
+from .intent_vector_matcher import IntentVectorMatcher
 from .keyword_matcher import KeywordMatcher
 from .llm_classifier import LLMClassifier
 from .regex_matcher import RegexMatcher
@@ -8,6 +9,7 @@ class Router:
     def __init__(self):
         self.keyword_matcher = KeywordMatcher()
         self.regex_matcher = RegexMatcher()
+        self.intent_vector = IntentVectorMatcher()
         self.llm_classifier = LLMClassifier()
 
     async def route(self, text: str) -> str:
@@ -19,6 +21,9 @@ class Router:
         rx = self.regex_matcher.match(text)
         if rx:
             return rx
+        vec = self.intent_vector.query(text)
+        if vec:
+            return vec[0]
         return await self.llm_classifier.classify(text)
 
     async def route_with_graph(

@@ -11,16 +11,20 @@ class StructuredFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
         }
-        if hasattr(record, "request_id"):
-            log_entry["request_id"] = record.request_id
-        if hasattr(record, "session_id"):
-            log_entry["session_id"] = record.session_id
-        if hasattr(record, "duration_ms"):
-            log_entry["duration_ms"] = record.duration_ms
-        if hasattr(record, "tokens_used"):
-            log_entry["tokens_used"] = record.tokens_used
-        if hasattr(record, "event"):
-            log_entry["event"] = record.event
+        # 收集所有 extra 自定义字段
+        for key in (
+            "request_id",
+            "session_id",
+            "duration_ms",
+            "tokens_used",
+            "event",
+            "intent",
+            "platform_session_id",
+            "message_preview",
+            "reply_len",
+        ):
+            if hasattr(record, key):
+                log_entry[key] = getattr(record, key)
         return json.dumps(log_entry, ensure_ascii=False)
 
 

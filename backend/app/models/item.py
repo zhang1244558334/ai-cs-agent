@@ -13,6 +13,7 @@ class Item(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True
     )
+    tenant_id: Mapped[str] = mapped_column(String(36), default='single')
     platform: Mapped[str] = mapped_column(String(32))
     platform_item_id: Mapped[str] = mapped_column(String(128))
     title: Mapped[str] = mapped_column(String(256))

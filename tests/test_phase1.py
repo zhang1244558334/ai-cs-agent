@@ -1,3 +1,7 @@
+import os
+
+os.environ.setdefault("CS_DATABASE_URL", "sqlite+aiosqlite:///./data/test_phase1.db")
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 

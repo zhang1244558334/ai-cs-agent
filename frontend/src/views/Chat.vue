@@ -14,6 +14,9 @@
           >
             {{ msg.role === 'user' ? '我' : 'AI' }}
           </el-tag>
+          <el-tag v-if="msg.is_proactive" size="small" type="warning" effect="plain" style="margin-right: 6px; font-size: 12px">
+            系统主动发起
+          </el-tag>
           <span
             :style="{
               background: msg.role === 'user' ? '#ecf5ff' : '#f0f9eb',
@@ -61,11 +64,44 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
 
 const inputMsg = ref('')
 const messages = ref([])
 const loading = ref(false)
+const sessionId = ref('')
+
+async function loadProactiveMessages() {
+  if (!sessionId.value) return
+  try {
+    const resp = await fetch(`/api/sessions/${sessionId.value}/messages?limit=50`)
+    if (!resp.ok) return
+    const data = await resp.json()
+    const proactive = data.filter(m => m.extra_metadata?.is_proactive)
+    for (const m of proactive) {
+      if (!messages.value.some(x => x.id === m.id)) {
+        messages.value.push({
+          id: m.id,
+          role: m.role || 'assistant',
+          content: m.content,
+          is_proactive: true,
+        })
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+onMounted(() => {
+  // 获取或创建会话
+  fetch('/api/sessions?limit=1').then(r => r.json()).then(sessions => {
+    if (sessions.length > 0) {
+      sessionId.value = sessions[0].id
+      loadProactiveMessages()
+    }
+  })
+})
 
 function intentTagType(intent) {
   if (intent === 'handover') return 'warning'

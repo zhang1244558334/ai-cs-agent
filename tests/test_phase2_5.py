@@ -1,5 +1,9 @@
 """Phase 2-5: 综合测试"""
 import json
+import os
+
+os.environ.setdefault("CS_DATABASE_URL", "sqlite+aiosqlite:///./data/test_phase25.db")
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 

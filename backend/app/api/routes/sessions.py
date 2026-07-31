@@ -107,6 +107,7 @@ async def get_session_messages(id: str, limit: int = 50):
                 "role": m.role,
                 "content": m.content,
                 "content_type": m.content_type,
+                "extra_metadata": m.extra_metadata,
                 "created_at": str(m.created_at) if m.created_at else None,
             }
             for m in messages
