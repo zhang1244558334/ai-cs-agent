@@ -4,12 +4,15 @@ from langgraph.graph import END, StateGraph
 
 from app.core.config import settings
 from app.core.llm import LLMClient
+from app.knowledge.retriever import Retriever
 
 llm = LLMClient(
     api_key=settings.llm_api_key,
     base_url=settings.llm_base_url,
     model=settings.llm_model,
 )
+
+retriever = Retriever(alpha=0.7)
 
 
 class ComplaintState(TypedDict):
@@ -40,13 +43,21 @@ async def query_order(state: ComplaintState) -> dict:
 
 
 async def check_policy(state: ComplaintState) -> dict:
-    return {"policy": "根据退换货政策，7天内可免费退货", "step": 3}
+    results = await retriever.retrieve(state["message"], top_k=2)
+    policy = (
+        "\n\n".join([r["text"] for r in results])
+        if results
+        else "未找到相关政策，需转人工确认"
+    )
+    return {"policy": policy, "step": 3}
 
 
 async def generate_solution(state: ComplaintState) -> dict:
     prompt = (
-        f"投诉: {state['message']}\n严重程度: {state['severity']}\n政策: {state['policy']}\n"
-        f"请给出解决方案，不超过80字。"
+        f"投诉: {state['message']}\n严重程度: {state['severity']}\n"
+        f"相关政策知识:\n{state['policy']}\n\n"
+        "请依据上述政策知识给出解决方案，不超过80字。"
+        "如果政策是'未找到相关政策，需转人工确认'，则建议转人工处理。"
     )
     r = await llm.chat([{"role": "user", "content": prompt}])
     return {"solution": r, "step": 4}

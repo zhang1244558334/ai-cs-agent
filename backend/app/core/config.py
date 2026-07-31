@@ -1,4 +1,16 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class PlatformSettings(BaseSettings):
+    provider: str = "mock"
+    timeout: float = 3.0
+    retry: int = 3
+    shadow: bool = False
+    verify: bool = False
+
+    model_config = SettingsConfigDict(
+        env_prefix="CS_PLATFORM_", env_file=".env", extra="ignore"
+    )
 
 
 class Settings(BaseSettings):
@@ -16,6 +28,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     handover_keywords: str = "人工,转人工,客服,真人,投诉"
     handover_timeout: int = 3600
+    tenant_mode: str = "single"
+    platform: PlatformSettings = PlatformSettings()
 
     model_config = {"env_prefix": "CS_", "env_file": ".env"}
 
