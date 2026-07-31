@@ -173,3 +173,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 路由实测 15 用例全过：5 账号类→default、3 物流→logistics、3 售后→after_sale、4 基准不回归
 - pytest backend/tests/：14 passed；pytest tests/：25 passed
 - 开发问题日志问题9 补记修复过程
+
+## 2026-07-31 — 全场景 e2e 测试（14 场景）+ 6 项修复
+
+背景：模拟用户对全部电商场景（tech/price/售后/物流/投诉/转人工/账号/支付/优惠/多轮）端到端对答，同时监视调用链。首轮 6/14，逐项修复后 14/14。
+
+### Fixed
+- **多轮持久化失效（P0 隐蔽 bug）**：extra_metadata 普通 JSON 列不追踪内部变更，context_history/order_no 的局部修改从不落库（仅首轮整体赋值生效）。Session/Message 改用 MutableDict.as_mutable(JSON)
+- **complaint 触发词太宽**：route_with_graph 的 ["投诉","退货","退款"] 吞掉所有售后咨询，收窄为投诉特有表达
+- **≤3 字拼接破坏明确意图**："转人工"被指代拼接改判 tech，拼接条件排除 handover
+- **订单号路由补丁**：含订单号或短指代+已存单号且最近物流话题 → 强制 logistics（排除 handover/complaint/no_reply）；拼接时还原被截断的订单号
+- **50 字截断关键条款**：丢件赔偿漏"3-7倍"，prompt 加关键条款优先完整例外
+- **filter_output 误伤**：支付宝/银行卡是支付 FAQ 必答词被黑名单拦截，移除并改逐词替换、去单字危险词
+
+### Verified
+- e2e 14/14 全过（含跨轮记忆：第二圈"现在呢"正确查同一单顺丰轨迹）
+- pytest backend/tests/：14 passed；tests/：26 passed（+1 新断言）
+- 开发问题日志补记问题14-18
