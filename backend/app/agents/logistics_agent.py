@@ -25,7 +25,8 @@ class LogisticsAgent(BaseAgent):
         )
         system_content = (
             "你是物流客服助手。参考以下知识回答用户关于发货、快递、物流时效、配送、签收的问题，"
-            "如果知识库没有答案请如实告知。回复简洁不超过50字。\n\n"
+            "如果知识库没有答案请如实告知。回复简洁不超过50字，"
+            "但涉及赔偿、时效、金额等关键条款时必须完整引用知识库内容，可突破50字限制。\n\n"
             f"参考知识：\n{knowledge}"
         )
         if order_no is None:
@@ -72,6 +73,7 @@ class LogisticsAgent(BaseAgent):
             else ""
         )
         parts = [
+            f"订单号：{info.order_no}",
             f"承运商：{info.carrier}",
             f"运单号：{info.tracking_no}",
             f"当前状态：{info.status}",

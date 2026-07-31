@@ -90,9 +90,15 @@ class TestSafety:
 
     def test_filter_output_multi_blocked(self):
         from app.safety.keyword_filter import filter_output
-        for word in ["微信", "QQ", "支付宝", "银行卡"]:
+        for word in ["微信", "QQ", "手机号", "身份证"]:
             result = filter_output(f"请联系{word}")
             assert "安全提醒" in result, f"Should block: {word}"
+
+    def test_filter_output_allows_payment_terms(self):
+        """支付宝/银行卡是支付FAQ必答内容（退款到账路径），不得拦截"""
+        from app.safety.keyword_filter import filter_output
+        result = filter_output("退款到支付宝余额，退回银行卡需要1-7个工作日")
+        assert "安全提醒" not in result
 
 
 # ===== 阶段三：知识库检索 =====

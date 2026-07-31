@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, Index, String, func
 from sqlalchemy.dialects.sqlite import JSON
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core.database import Base
@@ -26,7 +27,9 @@ class Session(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
-    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
+    extra_metadata: Mapped[dict | None] = mapped_column(
+        "metadata", MutableDict.as_mutable(JSON), nullable=True
+    )
 
     __table_args__ = (
         Index("idx_sessions_platform_user", "platform", "user_id", "updated_at"),

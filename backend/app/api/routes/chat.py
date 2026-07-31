@@ -118,14 +118,28 @@ async def chat(
         if elapsed > 30:
             context_history.clear()
 
-    # 多轮上下文指代消解：仅用非 handover/no_reply 轮次的话题
-    if intent != "no_reply" and len(message) <= 3 and context_history:
+    # 多轮上下文指代消解：仅用非 handover/no_reply 轮次的话题；"转人工"等明确意图不拼接
+    if intent not in ("no_reply", "handover") and len(message) <= 3 and context_history:
         valid_context = [c for c in context_history if c["intent"] not in ("handover", "no_reply")]
         if valid_context:
             last_topic = valid_context[-1]["topic"]
+            # topic 是 message[:12] 截断，若含 MOCK 说明订单号被截断，用完整单号还原
+            if sess.extra_metadata.get("order_no") and "MOCK" in last_topic:
+                last_topic = f"订单号 {sess.extra_metadata['order_no']}"
             enriched = f"{last_topic} {message}"
             intent, graph_sid = await route_engine.route_with_graph(enriched)
             message = enriched
+
+    # 订单号上下文路由补丁：仅当"当前消息含订单号"或"短指代且会话已存订单号"且最近话题是物流
+    # 才强制 logistics；handover/complaint/no_reply 是明确意图不被覆盖。
+    # （否则"订单号 MOCKxxx"会被 LLM 分到 default/tech，轨迹查询逻辑走不到）
+    if intent not in ("logistics", "handover", "complaint", "no_reply"):
+        recent_intents = [c["intent"] for c in context_history[-3:]]
+        msg_order = _extract_order_no(message)
+        if "logistics" in recent_intents and (
+            msg_order or (len(message) <= 3 and sess.extra_metadata.get("order_no"))
+        ):
+            intent = "logistics"
 
     # 保存用户原文（Query重写只用于路由/检索，不覆盖存库的历史）
     original_message = message
@@ -243,7 +257,8 @@ async def chat(
         history = await _load_history(sess.id, user_msg.id)
         system_content = (
             "你是电商客服助手。永远以客服身份说话，不要复述用户问题。"
-            "用户说'我说了XX'是在纠正你，应当确认并调整。回复简洁友好，不超过50字。"
+            "用户说'我说了XX'是在纠正你，应当确认并调整。回复简洁友好，不超过50字，"
+            "但涉及赔偿、时效、金额等关键条款时必须完整引用知识库内容，可突破50字限制。"
         )
         if intent in ("after_sale", "price", "default"):
             results = await retriever.retrieve(original_message, top_k=3)

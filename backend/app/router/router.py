@@ -31,7 +31,7 @@ class Router:
     ) -> tuple[str, str | None]:
         intent = await self.route(text)
         if intent == "after_sale":
-            complaint_kw = ["投诉", "退货", "退款"]
+            complaint_kw = ["投诉", "举报", "商家不处理", "一直不退", "不给退", "态度差", "欺骗"]
             if any(kw in text for kw in complaint_kw):
                 return "complaint", session_id
         return intent, None
