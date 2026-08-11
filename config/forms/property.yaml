@@ -1,0 +1,62 @@
+# 物业业务表单模板
+repair:
+  intent: repair
+  title: "报修申请"
+  slots:
+    - name: problem_type
+      label: "问题类型"
+      ask: "请问是什么问题？（水管漏水/停电跳闸/门锁损坏/电梯故障/其他）"
+      required: true
+      field_type: select
+      options: ["水管漏水", "停电跳闸", "门锁损坏", "电梯故障", "其他"]
+    - name: location
+      label: "具体位置"
+      ask: "请问具体在哪个位置？（如厨房、主卧卫生间、客厅）"
+      required: true
+    - name: room_number
+      label: "房号"
+      ask: "请告诉我您的房号（如3栋502）"
+      required: true
+    - name: contact
+      label: "联系方式"
+      ask: "请留一个联系方式，方便维修师傅联系您"
+      required: true
+    - name: note
+      label: "补充说明"
+      ask: "还有其他需要说明的吗？（没有请说'没有了'）"
+      required: false
+  confirm_template: |
+    请确认以下报修信息：
+    🏠 问题：{problem_type}
+    📍 位置：{location}
+    🏢 房号：{room_number}
+    📞 联系方式：{contact}
+    {note_note}
+    确认无误请回复"确认"，需要修改请回复"修改"
+  done_message: "✅ 报修工单已创建！维修师傅将在30分钟内与您联系，请保持电话畅通。工单编号将在确认后生成。"
+
+complain:
+  intent: complain
+  title: "投诉建议"
+  slots:
+    - name: complain_type
+      label: "投诉类型"
+      ask: "请问您要投诉什么问题？（噪音扰民/物业服务/邻里纠纷/环境卫生/其他）"
+      required: true
+      field_type: select
+      options: ["噪音扰民", "物业服务", "邻里纠纷", "环境卫生", "其他"]
+    - name: description
+      label: "具体描述"
+      ask: "请详细描述一下您遇到的问题"
+      required: true
+    - name: expectation
+      label: "期望处理"
+      ask: "您希望物业怎么处理这个问题？"
+      required: false
+  confirm_template: |
+    请确认以下投诉信息：
+    📋 类型：{complain_type}
+    📝 描述：{description}
+    {expectation_expectation}
+    确认无误请回复"确认"，需要修改请回复"修改"
+  done_message: "✅ 您的投诉已提交！物业服务中心会在24小时内与您联系处理，请保持电话畅通。"

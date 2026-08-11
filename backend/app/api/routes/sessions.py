@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import select, delete
 
 from app.core.database import async_session
 from app.models.message import Message
@@ -8,11 +9,19 @@ from app.models.session import Session
 router = APIRouter()
 
 
+class BatchDeleteRequest(BaseModel):
+    ids: list[str]
+
+
 @router.get("/api/sessions")
-async def list_sessions(limit: int = 20, offset: int = 0):
+async def list_sessions(limit: int = 20, offset: int = 0, tenant_id: str = "ecommerce"):
     async with async_session() as db:
         result = await db.execute(
-            select(Session).order_by(Session.updated_at.desc()).offset(offset).limit(limit)
+            select(Session)
+            .where(Session.tenant_id == tenant_id)
+            .order_by(Session.updated_at.desc())
+            .offset(offset)
+            .limit(limit)
         )
         sessions = result.scalars().all()
         return [
@@ -25,6 +34,7 @@ async def list_sessions(limit: int = 20, offset: int = 0):
                 "mode": s.mode,
                 "last_intent": s.last_intent,
                 "bargain_count": s.bargain_count,
+                "tenant_id": s.tenant_id,
                 "created_at": str(s.created_at) if s.created_at else None,
                 "updated_at": str(s.updated_at) if s.updated_at else None,
             }
@@ -37,12 +47,14 @@ async def create_session(
     platform: str = "web",
     platform_session_id: str = "",
     user_id: str = "",
+    tenant_id: str = "ecommerce",
 ):
     async with async_session() as db:
         sess = Session(
             platform=platform,
             platform_session_id=platform_session_id or f"auto_{user_id}",
             user_id=user_id or "anonymous",
+            tenant_id=tenant_id,
         )
         db.add(sess)
         await db.commit()
@@ -52,6 +64,7 @@ async def create_session(
             "platform": sess.platform,
             "user_id": sess.user_id,
             "mode": sess.mode,
+            "tenant_id": sess.tenant_id,
             "created_at": str(sess.created_at),
         }
 
@@ -71,6 +84,7 @@ async def get_session(id: str):
             "mode": s.mode,
             "last_intent": s.last_intent,
             "bargain_count": s.bargain_count,
+            "tenant_id": s.tenant_id,
             "created_at": str(s.created_at) if s.created_at else None,
             "updated_at": str(s.updated_at) if s.updated_at else None,
         }
@@ -112,3 +126,27 @@ async def get_session_messages(id: str, limit: int = 50):
             }
             for m in messages
         ]
+
+
+@router.delete("/api/sessions/{id}")
+async def delete_session(id: str):
+    async with async_session() as db:
+        s = await db.get(Session, id)
+        if not s:
+            raise HTTPException(status_code=404, detail="Session not found")
+        await db.execute(delete(Message).where(Message.session_id == id))
+        await db.delete(s)
+        await db.commit()
+        return {"ok": True}
+
+
+@router.post("/api/sessions/batch-delete")
+async def batch_delete_sessions(req: BatchDeleteRequest):
+    async with async_session() as db:
+        for sid in req.ids:
+            s = await db.get(Session, sid)
+            if s:
+                await db.execute(delete(Message).where(Message.session_id == sid))
+                await db.delete(s)
+        await db.commit()
+    return {"ok": True, "deleted": len(req.ids)}

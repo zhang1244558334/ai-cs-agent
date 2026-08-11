@@ -1,0 +1,65 @@
+# 平台配置模板。每个平台定义需要哪些凭证字段。
+mock:
+  name: "模拟数据"
+  icon: "flask-conical"
+  fields: []   # Mock不需要凭证
+  description: "使用内置模拟数据演示，无需真实平台账号"
+
+xianyu:
+  name: "闲鱼"
+  icon: "fish"
+  fields:
+    - key: app_key
+      label: "Cookie字符串"
+      type: password
+      placeholder: "从浏览器F12→Application→Cookies复制全部"
+    - key: seller_id
+      label: "卖家ID(unb)"
+      type: text
+      placeholder: "Cookie中unb字段的值"
+  description: "连接闲鱼卖家账号（基于cv-cat/XianYuApis逆向API）。不需要官方AppKey，用浏览器Cookie即可。商品查询为真实数据，物流暂用模拟。"
+
+taobao:
+  name: "淘宝"
+  icon: "shopping-bag"
+  fields:
+    - key: app_key
+      label: "App Key"
+      type: password
+    - key: app_secret
+      label: "App Secret"
+      type: password
+    - key: session_key
+      label: "Session Key"
+      type: password
+  description: "连接淘宝开放平台，管理商品、订单、物流"
+
+jd:
+  name: "京东"
+  icon: "package"
+  fields:
+    - key: app_key
+      label: "App Key"
+      type: password
+    - key: app_secret
+      label: "App Secret"
+      type: password
+    - key: access_token
+      label: "Access Token"
+      type: password
+  description: "连接京东开放平台，管理商品和订单"
+
+pdd:
+  name: "拼多多"
+  icon: "tags"
+  fields:
+    - key: client_id
+      label: "Client ID"
+      type: password
+    - key: client_secret
+      label: "Client Secret"
+      type: password
+    - key: mall_id
+      label: "店铺ID"
+      type: text
+  description: "连接拼多多开放平台，管理多多进宝和订单"

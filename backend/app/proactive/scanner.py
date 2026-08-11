@@ -32,11 +32,23 @@ class ProactiveScanner:
             self._task = None
 
     async def _loop(self):
+        tick = 0
         while True:
             try:
                 await self.scan()
             except Exception as e:
                 print(f"[ProactiveScanner] scan error: {e}")
+            # 每30分钟自动归因分析
+            tick += 1
+            if tick % 30 == 0:
+                try:
+                    from app.attribution.engine import AttributionEngine
+                    engine = AttributionEngine()
+                    n1 = await engine.analyze_flagged_messages()
+                    n2 = await engine.analyze_batch()
+                    print(f"[ProactiveScanner] attribution: flagged={n1} handover={n2}")
+                except Exception as e:
+                    print(f"[ProactiveScanner] attribution error: {e}")
             await asyncio.sleep(POLL_INTERVAL)
 
     async def scan(self):
@@ -86,6 +98,7 @@ class ProactiveScanner:
                         content=content,
                         content_type="text",
                         extra_metadata={"is_proactive": True, "event_type": event.get("event_type", "")},
+                        tenant_id=event.get("tenant_id", "ecommerce"),
                     )
                     db.add(msg)
                 await db.commit()

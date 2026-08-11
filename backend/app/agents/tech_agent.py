@@ -1,3 +1,5 @@
+import json
+
 from app.knowledge.retriever import Retriever
 
 from .base_agent import BaseAgent
@@ -14,8 +16,9 @@ class TechAgent(BaseAgent):
         context=None,
         extra_context=None,
         temperature=None,
+        tenant_id: str = "ecommerce",
     ):
-        results = await self.retriever.retrieve(user_msg)
+        results = await self.retriever.retrieve(user_msg, tenant_id=tenant_id)
         knowledge = (
             "\n\n".join([r["text"] for r in results]) if results else "未找到相关信息"
         )
@@ -33,10 +36,10 @@ class TechAgent(BaseAgent):
         ]
         return await self._call_llm(messages, temperature)
 
-    async def chat_stream(self, messages: list):
+    async def chat_stream(self, messages: list, tenant_id: str = "ecommerce"):
         history = messages[:-1]
         user_msg = messages[-1]["content"] if messages else ""
-        results = await self.retriever.retrieve(user_msg)
+        results = await self.retriever.retrieve(user_msg, tenant_id=tenant_id)
         knowledge = (
             "\n\n".join([r["text"] for r in results]) if results else "未找到相关信息"
         )
@@ -49,4 +52,14 @@ class TechAgent(BaseAgent):
         }
         msgs = [system] + history + [{"role": "user", "content": user_msg}]
         async for token in self.llm.chat_stream(msgs):
-            yield token
+            if token == "[DONE]":
+                yield (
+                    "__retrieval__:"
+                    + json.dumps(
+                        [{"text": r["text"], "score": r.get("score", 0)} for r in results],
+                        ensure_ascii=False,
+                    )
+                )
+                yield "[DONE]"
+            else:
+                yield token

@@ -1,6 +1,6 @@
 import os
 
-SUPPORTED_EXTS = {".md", ".txt", ".csv", ".html"}
+SUPPORTED_EXTS = {".md", ".txt", ".csv", ".html", ".pdf"}
 
 
 def chunk_text(text: str, chunk_size: int = 512, overlap: int = 32) -> list[str]:

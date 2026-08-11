@@ -1,0 +1,445 @@
+<template>
+  <div class="dashboard-page">
+    <div class="page-header">
+      <h2 class="page-title">仪表盘</h2>
+      <div class="header-actions">
+        <el-button type="primary" size="small" @click="runAttribution" :loading="attributionLoading">
+          <i data-lucide="play" class="btn-icon"></i> 运行归因
+        </el-button>
+        <el-button type="primary" size="small" @click="runAutoExecute" :loading="executeLoading">
+          <i data-lucide="zap" class="btn-icon"></i> 执行提案
+        </el-button>
+        <el-button type="primary" size="small" @click="runWeeklyReport" :loading="reportLoading">
+          <i data-lucide="bar-chart-3" class="btn-icon"></i> 生成周报
+        </el-button>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-card">
+        <span class="stat-icon health"><i data-lucide="heart-pulse"></i></span>
+        <div class="stat-body">
+          <div class="stat-value">
+            <span class="health-dot green"></span>{{ dashboard.health === 'ok' ? '正常' : '异常' }}
+          </div>
+          <div class="stat-label">系统健康</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon primary"><i data-lucide="message-square"></i></span>
+        <div class="stat-body">
+          <div class="stat-value">{{ dashboard.today ?? 0 }}</div>
+          <div class="stat-label">今日消息</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon warning"><i data-lucide="shield-alert"></i></span>
+        <div class="stat-body">
+          <div class="stat-value">{{ dashboard.flagged ?? 0 }}</div>
+          <div class="stat-label">质检标记</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon danger"><i data-lucide="clipboard-list"></i></span>
+        <div class="stat-body">
+          <div class="stat-value">{{ dashboard.proposals ?? 0 }}</div>
+          <div class="stat-label">待处理提案</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3 class="chart-title">意图分布（24h）</h3>
+        <div ref="pieChart" class="chart-box"></div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">24小时会话量趋势</h3>
+        <div ref="lineChart" class="chart-box"></div>
+      </div>
+    </div>
+
+    <div class="list-card">
+      <h3 class="list-title">最近对话</h3>
+      <div class="table-header">
+        <span class="col-intent">意图</span>
+        <span class="col-content">内容</span>
+        <span class="col-time">时间</span>
+      </div>
+      <div v-if="dashboard.recent_chats?.length">
+        <div v-for="chat in dashboard.recent_chats" :key="chat.id" class="table-row">
+          <span class="col-intent">
+            <el-tag size="small" :type="intentTagType(chat.intent)">{{ chat.intent || '-' }}</el-tag>
+          </span>
+          <span class="col-content" :title="chat.content">{{ chat.content }}</span>
+          <span class="col-time">{{ chat.created_at }}</span>
+        </div>
+      </div>
+      <div v-else class="empty-row">暂无对话记录</div>
+    </div>
+
+    <div class="list-card">
+      <h3 class="list-title">最近提案</h3>
+      <div class="table-header">
+        <span class="col-type">类型</span>
+        <span class="col-desc">操作描述</span>
+        <span class="col-level">级别</span>
+        <span class="col-status">状态</span>
+      </div>
+      <div v-if="dashboard.recent_proposals?.length">
+        <div v-for="p in dashboard.recent_proposals" :key="p.id" class="table-row">
+          <span class="col-type">
+            <el-tag size="small" :type="attrTag(p.attribution_type)">{{ attrLabel(p.attribution_type) }}</el-tag>
+          </span>
+          <span class="col-desc" :title="p.content">{{ p.action || '' }} {{ p.content || '' }}</span>
+          <span class="col-level">
+            <el-tag size="small" :type="levelTag(p.level)">{{ p.level }}</el-tag>
+          </span>
+          <span class="col-status">{{ statusText(p.status) }}</span>
+        </div>
+      </div>
+      <div v-else class="empty-row">暂无提案</div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
+
+const dashboard = ref({})
+const pieChart = ref(null)
+const lineChart = ref(null)
+let pieInstance = null
+let lineInstance = null
+
+const attributionLoading = ref(false)
+const executeLoading = ref(false)
+const reportLoading = ref(false)
+
+let timer = null
+
+function refreshIcons() {
+  nextTick(() => {
+    if (window.lucide) {
+      window.lucide.createIcons({ attrs: { width: '16', height: '16' } })
+    }
+  })
+}
+
+async function load() {
+  try {
+    const r = await fetch('/api/admin/dashboard')
+    if (r.ok) {
+      dashboard.value = await r.json()
+      refreshIcons()
+      renderCharts()
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+function renderCharts() {
+  const d = dashboard.value
+  if (!d.intent_stats || !d.hourly_stats) return
+  
+  nextTick(() => {
+    // 饼图 - 意图分布
+    if (pieChart.value) {
+      if (!pieInstance) pieInstance = echarts.init(pieChart.value)
+      pieInstance.setOption({
+        tooltip: { trigger: 'item' },
+        legend: { bottom: 0, textStyle: { fontSize: 11 } },
+        series: [{
+          type: 'pie',
+          radius: ['40%', '70%'],
+          center: ['50%', '45%'],
+          label: { fontSize: 11 },
+          data: d.intent_stats.map(i => ({
+            name: intentCN(i.name),
+            value: i.value
+          }))
+        }]
+      })
+    }
+    // 折线图 - 24h趋势
+    if (lineChart.value) {
+      if (!lineInstance) lineInstance = echarts.init(lineChart.value)
+      lineInstance.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { left: 40, right: 16, top: 10, bottom: 24 },
+        xAxis: {
+          type: 'category',
+          data: d.hourly_stats.map(i => i.hour),
+          axisLabel: { fontSize: 10, rotate: 45 }
+        },
+        yAxis: {
+          type: 'value',
+          minInterval: 1,
+          axisLabel: { fontSize: 10 }
+        },
+        series: [{
+          type: 'line',
+          data: d.hourly_stats.map(i => i.count),
+          smooth: true,
+          lineStyle: { color: '#1890ff', width: 2 },
+          areaStyle: { color: 'rgba(24,144,255,0.1)' },
+          itemStyle: { color: '#1890ff' }
+        }]
+      })
+    }
+  })
+}
+
+async function runAttribution() {
+  attributionLoading.value = true
+  try {
+    const r = await fetch('/api/admin/attribution/run', { method: 'POST' })
+    const d = await r.json()
+    ElMessage.success(`归因完成: flagged=${d.flagged || 0} handover=${d.handover || 0}`)
+    load()
+  } catch (e) {
+    ElMessage.error('归因分析失败')
+  }
+  attributionLoading.value = false
+}
+
+async function runAutoExecute() {
+  executeLoading.value = true
+  try {
+    const r = await fetch('/api/admin/auto-execute', { method: 'POST' })
+    ElMessage.success('L1 提案已执行')
+    load()
+  } catch (e) {
+    ElMessage.error('执行失败')
+  }
+  executeLoading.value = false
+}
+
+async function runWeeklyReport() {
+  reportLoading.value = true
+  try {
+    const r = await fetch('/api/admin/weekly-report', { method: 'POST' })
+    ElMessage.success('周报已生成')
+  } catch (e) {
+    ElMessage.error('周报生成失败')
+  }
+  reportLoading.value = false
+}
+
+function intentTagType(intent) {
+  if (['handover', 'no_reply'].includes(intent)) return 'warning'
+  if (intent === 'complaint') return 'danger'
+  if (['after_sale', 'price'].includes(intent)) return 'success'
+  return 'info'
+}
+
+function intentCN(intent) {
+  const map = {
+    price: '议价', logistics: '物流', after_sale: '售后',
+    tech: '产品', default: '通用', handover: '转人工',
+    complaint: '投诉', no_reply: '无回复', error: '错误',
+  }
+  return map[intent] || intent
+}
+
+function attrLabel(t) {
+  return { A: '知识缺失', B: '路由错误', C: '话术问题', D: '正常转接' }[t] || t
+}
+function attrTag(t) {
+  return { A: 'warning', B: 'danger', C: '', D: 'success' }[t] || 'info'
+}
+function levelTag(level) {
+  return { L1: 'success', L2: 'warning', L3: '' }[level] || 'info'
+}
+function statusText(s) {
+  return { pending: '待处理', approved: '已采纳', rejected: '已驳回', deferred: '暂缓', done: '已完成' }[s] || s || '待处理'
+}
+
+onMounted(() => {
+  load()
+  timer = setInterval(load, 5000)
+  window.addEventListener('resize', handleResize)
+})
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+  window.removeEventListener('resize', handleResize)
+  if (pieInstance) pieInstance.dispose()
+  if (lineInstance) lineInstance.dispose()
+})
+
+function handleResize() {
+  if (pieInstance) pieInstance.resize()
+  if (lineInstance) lineInstance.resize()
+}
+</script>
+
+<style scoped>
+.dashboard-page {
+  padding: 24px;
+  min-height: 100vh;
+  background: #f0f2f5;
+}
+
+/* ---- header ---- */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+
+/* ---- stat cards ---- */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  gap: 16px;
+}
+.stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-icon.health  { background: #f6ffed; color: #52c41a; }
+.stat-icon.primary { background: #e6f7ff; color: #1890ff; }
+.stat-icon.warning { background: #fff7e6; color: #faad14; }
+.stat-icon.danger  { background: #fff2f0; color: #ff4d4f; }
+
+.stat-body {
+  flex: 1;
+  min-width: 0;
+}
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.85);
+  line-height: 1.2;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.health-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.health-dot.green { background: #52c41a; }
+.health-dot.red   { background: #ff4d4f; }
+
+.stat-label {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+/* ---- charts ---- */
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.chart-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.chart-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+}
+.chart-box {
+  width: 100%;
+  height: 260px;
+}
+
+/* ---- list cards ---- */
+.list-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  margin-bottom: 24px;
+}
+.list-title {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+/* table layout */
+.table-header {
+  display: flex;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #999;
+  border-bottom: 1px solid #f0f0f0;
+}
+.table-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.15s;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+}
+.table-row:last-child {
+  border-bottom: none;
+}
+.table-row:hover {
+  background: #fafafa;
+}
+.col-intent { width: 90px; flex-shrink: 0; }
+.col-content { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; }
+.col-time   { width: 160px; flex-shrink: 0; text-align: right; color: #999; }
+.col-type   { width: 90px; flex-shrink: 0; }
+.col-desc   { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; }
+.col-level  { width: 60px; flex-shrink: 0; }
+.col-status { width: 80px; flex-shrink: 0; text-align: right; color: #999; }
+
+.empty-row {
+  padding: 24px 0;
+  text-align: center;
+  color: #bbb;
+  font-size: 13px;
+}
+</style>

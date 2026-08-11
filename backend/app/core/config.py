@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     handover_timeout: int = 3600
     tenant_mode: str = "single"
     platform: PlatformSettings = PlatformSettings()
+    platform_config: str = ""  # JSON string of platform credentials
 
     model_config = {"env_prefix": "CS_", "env_file": ".env"}
 

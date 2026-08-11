@@ -90,9 +90,16 @@ class TestSafety:
 
     def test_filter_output_multi_blocked(self):
         from app.safety.keyword_filter import filter_output
-        for word in ["微信", "QQ", "手机号", "身份证"]:
+        for word in ["私人微信", "私人电话", "加我微信", "加我QQ"]:
             result = filter_output(f"请联系{word}")
             assert "安全提醒" in result, f"Should block: {word}"
+
+    def test_filter_output_allows_business_terms(self):
+        """微信/QQ/手机号/身份证/线下是正常业务词，不得拦截"""
+        from app.safety.keyword_filter import filter_output
+        for word in ["微信支付", "QQ钱包", "收件人手机号", "身份证验证", "线下门店"]:
+            result = filter_output(f"支持{word}")
+            assert "安全提醒" not in result, f"Should allow: {word}"
 
     def test_filter_output_allows_payment_terms(self):
         """支付宝/银行卡是支付FAQ必答内容（退款到账路径），不得拦截"""

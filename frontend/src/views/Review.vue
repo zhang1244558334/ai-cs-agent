@@ -1,6 +1,15 @@
 <template>
-  <div>
-    <h3>归因审批列表</h3>
+  <div class="review-page">
+    <div class="page-header">
+      <div class="page-breadcrumb">
+        <i data-lucide="clipboard-check" class="breadcrumb-icon"></i>
+        <span>归因审批</span>
+      </div>
+      <div class="header-actions">
+        <el-button type="primary" @click="refresh">刷新列表</el-button>
+      </div>
+    </div>
+    <div class="page-card">
     <el-tabs v-model="activeTab">
       <el-tab-pane label="L2 待审批" name="l2">
         <el-empty v-if="l2List.length === 0" description="暂无待审批提案" />
@@ -50,7 +59,7 @@
         </el-card>
       </el-tab-pane>
     </el-tabs>
-    <el-button type="primary" style="margin-top: 16px" @click="refresh">刷新列表</el-button>
+    </div>
   </div>
 </template>
 
@@ -96,3 +105,43 @@ async function markDone(item) {
 
 onMounted(refresh)
 </script>
+
+<style scoped>
+.review-page { padding: 0 24px 24px; min-height: 100vh; }
+
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; padding: 16px 24px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+}
+.page-breadcrumb {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 18px; font-weight: 700; color: var(--text-primary);
+}
+.breadcrumb-icon { display: inline-flex; align-items: center; color: var(--accent); }
+.header-actions { display: flex; gap: 8px; }
+.btn-icon { display: inline-flex; vertical-align: middle; margin-right: 2px; }
+
+.page-card {
+  background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border); border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow); padding: 24px; max-width: 900px;
+}
+.page-card :deep(.el-card) {
+  background: rgba(255,255,255,0.35) !important; backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: none !important; transition: all 0.25s;
+}
+.page-card :deep(.el-card:hover) {
+ background: var(--glass-bg-hover) !important;
+  box-shadow: 0 4px 16px rgba(31,38,135,0.08) !important;
+}
+.page-card :deep(.el-card .el-button + .el-button) { margin-left: 12px; }
+</style>

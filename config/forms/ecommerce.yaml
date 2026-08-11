@@ -1,0 +1,29 @@
+# 电商业务表单模板
+after_sale:
+  intent: after_sale
+  title: "退换货申请"
+  slots:
+    - name: order_no
+      label: "订单号"
+      ask: "请提供您的订单号（如MOCK20260731001）"
+      required: true
+    - name: reason
+      label: "退货原因"
+      ask: "请简单说明退货原因（如质量问题/尺寸不合适/不喜欢/发错货）"
+      required: true
+    - name: pickup_address
+      label: "取件地址"
+      ask: "请提供取件地址，快递员会上门取件"
+      required: true
+    - name: photo
+      label: "商品照片"
+      ask: "如有商品问题照片可以描述一下（没有请说'没有'）"
+      required: false
+  confirm_template: |
+    请确认以下退换货信息：
+    📦 订单号：{order_no}
+    📝 原因：{reason}
+    🏠 取件地址：{pickup_address}
+    {photo_photo}
+    确认无误请回复"确认"，需要修改请回复"修改"
+  done_message: "✅ 退换货申请已提交！快递员将在1-2个工作日内上门取件，请保持电话畅通。"

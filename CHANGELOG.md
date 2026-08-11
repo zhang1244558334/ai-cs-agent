@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 项目初始脚手架搭建
 - 目录骨架、pyproject.toml、Makefile、Docker Compose、配置文件
 
+## 2026-08-03 — 流式重试 + 质检闭环 + Phase 6 接线
+
+### Fixed
+- **chat_stream 静默失败（P0）**：`LLMClient.chat_stream()` 失败时无重试无提示，用户看空白回复。改为 3 次重试（0s/2s/4s）+ 降级文案，与 `chat()` 保持一致（backend/app/core/llm.py）
+
+### Added
+- **质检标记**：`_quality_check()` 函数——中文 2 字 bigram 重叠检测，回复与知识库原文重叠 < 3 个词则标 `quality_flag: "factual_error"`，回复含"未找到相关信息"则跳过。每轮回复自动执行，零 API 消耗（chat.py）
+- **Agent 检索结果暴露**：TechAgent/LogisticsAgent 的 chat_stream 在 `[DONE]` 前 yield `__retrieval__:{...}` 标记，chat.py 解析后用于质检和归因（可观测性设计）
+- **归因引擎接线**：`AttributionEngine.analyze_flagged_messages()` 扫描 Message 表中 quality_flag="factual_error" 的消息，LLM 归因分析后自动生成提案存入 data/auto_patches/（attribution/engine.py）
+- **管理 API**：`POST /api/admin/attribution/run` 一键触发全量归因（已有 `GET /api/admin/proposals`、`POST /api/admin/auto-execute`、`POST /api/admin/weekly-report`）
+- **Phase 6 闭环**：质检标记 → 归因分析 → 决策提案（L1自动/L2审批/L3研判）→ 自动执行 → 验证 → 回滚 → 周报，8 步全部实现
+
+### Verified
+- pytest tests/：26 passed，零回归
+- 路由全链路测试：price/after_sale/handover/tech/logistics/default 6/6 正确
+- 质检函数：无重叠→标flag、有重叠→通过、未找到→跳过，三种情况均正确
+- 归因引擎：_parse() JSON 解析正确、generate_proposal() L1 分级正确
+
 ### Phase 0 — 工程脚手架（2026-07-27）
 - 创建项目目录骨架（backend/app/ 下 10 个包 + frontend/src + docs + tests）
 - pyproject.toml 配置 FastAPI/LangGraph/SQLAlchemy/Chroma 等依赖

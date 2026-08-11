@@ -23,27 +23,40 @@ class IntentVectorMatcher:
         self,
         host: str = "localhost",
         port: int = 8001,
-        collection_name: str = "intent_examples",
     ):
-        self.collection = None
+        self._client = None
+        self._collections: dict[str, object] = {}
         try:
-            client = chromadb.HttpClient(
+            self._client = chromadb.HttpClient(
                 host=host or settings.chroma_host,
                 port=port or settings.chroma_port,
                 settings=ChromaSettings(anonymized_telemetry=False),
             )
-            self.collection = client.get_or_create_collection(
-                name=collection_name,
+        except Exception:
+            self._client = None
+
+    def _get_collection(self, tenant_id: str):
+        if not self._client:
+            return None
+        if tenant_id in self._collections:
+            return self._collections[tenant_id]
+        try:
+            name = f"intent_examples_{tenant_id}"
+            col = self._client.get_or_create_collection(
+                name=name,
                 embedding_function=EMBED_FN,
             )
+            self._collections[tenant_id] = col
+            return col
         except Exception:
-            self.collection = None
+            return None
 
-    def query(self, text: str) -> tuple[str, float] | None:
-        if not self.collection:
+    def query(self, text: str, tenant_id: str = "ecommerce") -> tuple[str, float] | None:
+        col = self._get_collection(tenant_id)
+        if not col:
             return None
         try:
-            results = self.collection.query(query_texts=[text], n_results=1)
+            results = col.query(query_texts=[text], n_results=1)
             if not results["documents"] or not results["documents"][0]:
                 return None
             distance = results["distances"][0][0] if results["distances"] else 1.0

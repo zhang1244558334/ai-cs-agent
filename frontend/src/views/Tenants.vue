@@ -1,9 +1,15 @@
 <template>
-  <div>
-    <div style="display: flex; justify-content: space-between; align-items: center">
-      <h3 style="margin-top: 0">租户管理</h3>
-      <el-button type="primary" size="small" @click="showCreate = true">新建租户</el-button>
+  <div class="tenants-page">
+    <div class="page-header">
+      <div class="page-breadcrumb">
+        <i data-lucide="building-2" class="breadcrumb-icon"></i>
+        <span>租户管理</span>
+      </div>
+      <div class="header-actions">
+        <el-button type="primary" size="small" @click="showCreate = true">新建租户</el-button>
+      </div>
     </div>
+    <div class="page-card">
 
     <el-table :data="tenants" style="width: 100%" v-loading="loading">
       <el-table-column prop="name" label="企业名称" />
@@ -51,6 +57,7 @@
         <el-button type="primary" @click="createTenant">确认</el-button>
       </template>
     </el-dialog>
+    </div>
   </div>
 </template>
 
@@ -93,3 +100,32 @@ function editTenant(row) {
 
 onMounted(fetchTenants)
 </script>
+
+<style scoped>
+.tenants-page { padding: 0 24px 24px; min-height: 100vh; }
+
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; padding: 16px 24px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+}
+.page-breadcrumb {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 18px; font-weight: 700; color: var(--text-primary);
+}
+.breadcrumb-icon { display: inline-flex; align-items: center; color: var(--accent); }
+.header-actions { display: flex; gap: 8px; }
+.btn-icon { display: inline-flex; vertical-align: middle; margin-right: 2px; }
+
+.page-card {
+  background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border); border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow); padding: 24px; max-width: 1000px;
+}
+</style>

@@ -1,0 +1,24 @@
+# 闲鱼业务表单模板
+after_sale:
+  intent: after_sale
+  title: "售后处理"
+  slots:
+    - name: order_no
+      label: "订单号"
+      ask: "请提供闲鱼订单号"
+      required: true
+    - name: reason
+      label: "问题说明"
+      ask: "请简单说明遇到的问题（如与描述不符/功能问题/破损等）"
+      required: true
+    - name: evidence
+      label: "凭证"
+      ask: "有照片或说明补充一下？没有就说'没有'"
+      required: false
+  confirm_template: |
+    请确认以下信息：
+    📦 订单号：{order_no}
+    📝 问题：{reason}
+    {evidence_evidence}
+    确认无误请回复"确认"，需要修改请回复"修改"
+  done_message: "已记录您的问题。因为是个人闲置交易，建议先协商解决，协商不成可以申请闲鱼小法庭介入。"

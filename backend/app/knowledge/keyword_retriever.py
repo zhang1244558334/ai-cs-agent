@@ -1,43 +1,66 @@
 import os
 import re
 
+import jieba
+from rank_bm25 import BM25Okapi
+
+DOCS_BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "docs"))
+
 
 class KeywordRetriever:
-    """基于关键词匹配的轻量级检索器，无需嵌入模型"""
+    """基于BM25+结巴分词的检索器，按业务线加载文档，tenant_id隔离"""
 
-    def __init__(self, docs_dir: str = "docs"):
-        self.docs_dir = docs_dir
-        self.documents = []  # list of {"text": str, "source": str}
-        self._load_documents()
+    def __init__(self):
+        self._cache: dict[str, dict] = {}
 
-    def _load_documents(self):
-        if not os.path.exists(self.docs_dir):
-            return
-        for fname in os.listdir(self.docs_dir):
+    def _load_documents(self, tenant_id: str) -> dict:
+        if tenant_id in self._cache:
+            return self._cache[tenant_id]
+
+        tenant_dir = os.path.join(DOCS_BASE, tenant_id)
+        documents = []
+        if not os.path.exists(tenant_dir):
+            self._cache[tenant_id] = {"docs": [], "bm25": None, "tokenized_docs": []}
+            return self._cache[tenant_id]
+
+        for fname in os.listdir(tenant_dir):
             if fname.endswith((".md", ".txt")):
-                path = os.path.join(self.docs_dir, fname)
-                with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                    text = f.read()
-                # 按标题切块
+                path = os.path.join(tenant_dir, fname)
+                try:
+                    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                        text = f.read()
+                except Exception:
+                    continue
                 sections = re.split(r"\n##\s+", text)
                 for sec in sections:
                     if len(sec.strip()) > 20:
-                        self.documents.append({"text": sec.strip(), "source": fname})
+                        documents.append({"text": sec.strip(), "source": fname})
 
-    def search(self, query: str, top_k: int = 3) -> list[dict]:
-        """关键词检索：将查询分词后在文档中匹配"""
-        if not self.documents:
+        # 用jieba分词构建BM25索引
+        tokenized_docs = [jieba.lcut(doc["text"]) for doc in documents]
+        bm25 = BM25Okapi(tokenized_docs) if documents else None
+
+        self._cache[tenant_id] = {"docs": documents, "bm25": bm25, "tokenized_docs": tokenized_docs}
+        return self._cache[tenant_id]
+
+    def _tokenize(self, text: str, docs: list[dict]) -> list[str]:
+        """使用jieba分词提取查询关键词"""
+        return jieba.lcut(text)
+
+    def search(self, query: str, top_k: int = 3, tenant_id: str = "ecommerce") -> list[dict]:
+        cache = self._load_documents(tenant_id)
+        docs = cache["docs"]
+        bm25 = cache["bm25"]
+
+        if not docs or bm25 is None:
             return []
 
-        keywords = self._tokenize(query)
-        scored = []
-        for doc in self.documents:
-            text_lower = doc["text"].lower()
-            score = sum(1 for kw in keywords if kw in text_lower)
-            if score > 0:
-                scored.append((score, doc))
+        keywords = self._tokenize(query, docs)
+        scores = bm25.get_scores(keywords)
 
+        scored = [(scores[i], docs[i]) for i in range(len(docs)) if scores[i] > 0]
         scored.sort(key=lambda x: -x[0])
+
         results = []
         for score, doc in scored[:top_k]:
             snippet = doc["text"][:200]
@@ -46,45 +69,22 @@ class KeywordRetriever:
             results.append({
                 "text": snippet,
                 "metadata": {"source": doc["source"]},
-                "score": score / max(len(keywords), 1),
+                "score": float(score),
             })
         return results
 
-    def _tokenize(self, text: str) -> list[str]:
-        """简单中文分词：按字/词切分"""
-        text = text.lower()
-        # 提取关键词（2-4字的中文片段）
-        tokens = []
-        # 常用商品/服务关键词
-        for word in [
-            "退货", "退款", "换货", "保修", "维修", "发货", "物流",
-            "快递", "包邮", "运费", "价格", "优惠", "折扣", "促销",
-            "尺码", "颜色", "型号", "规格", "参数",
-            "客服", "人工", "投诉", "售后",
-        ]:
-            if word in text:
-                tokens.append(word)
-        if not tokens:
-            # 按字切分作为后备（只保留含中文的片段，避免英文品牌名误匹配）
-            for i in range(len(text) - 1):
-                token = text[i : i + 2]
-                if re.search(r"[\u4e00-\u9fff]", token):
-                    tokens.append(token)
-        return list(set(tokens))
-
     def _find_relevant_snippet(self, text: str, keywords: list[str]) -> str:
-        """找到包含最多关键词的段落"""
         paragraphs = text.split("\n")
         best_para = ""
         best_score = 0
         for para in paragraphs:
             if len(para.strip()) < 10:
                 continue
-            score = sum(1 for kw in keywords if kw in para.lower())
+            score = sum(1 for kw in keywords if kw.lower() in para.lower())
             if score > best_score:
                 best_score = score
                 best_para = para.strip()
         return best_para[:200] if best_para else text[:200]
 
-    async def retrieve(self, query: str, top_k: int = 3) -> list[dict]:
-        return self.search(query, top_k=top_k)
+    async def retrieve(self, query: str, top_k: int = 3, tenant_id: str = "ecommerce") -> list[dict]:
+        return self.search(query, top_k=top_k, tenant_id=tenant_id)

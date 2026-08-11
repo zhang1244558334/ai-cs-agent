@@ -1,6 +1,15 @@
 <template>
-  <div style="padding: 20px; max-width: 1000px; margin: 0 auto">
-    <h2>🧪 全功能测试中心</h2>
+  <div class="testcenter-page">
+    <div class="page-header">
+      <div class="page-breadcrumb">
+        <i data-lucide="flask-conical" class="breadcrumb-icon"></i>
+        <span>🧪 测试中心</span>
+      </div>
+      <div class="header-actions">
+        <el-button type="info" @click="clearAll">清空结果</el-button>
+      </div>
+    </div>
+    <div class="page-card">
     <p style="color: #909399; margin-bottom: 20px">按层分组，点按钮测功能，结果实时显示</p>
 
     <el-collapse v-model="activeLayers">
@@ -86,8 +95,6 @@
     </el-collapse>
 
     <el-divider />
-    <div style="display: flex; gap: 8px">
-      <el-button type="info" @click="clearAll">清空所有结果</el-button>
     </div>
   </div>
 </template>
@@ -205,16 +212,37 @@ function clearAll() {
 </script>
 
 <style scoped>
+.testcenter-page { padding: 0 24px 24px; min-height: 100vh; }
+
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; padding: 16px 24px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+}
+.page-breadcrumb {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 18px; font-weight: 700; color: var(--text-primary);
+}
+.breadcrumb-icon { display: inline-flex; align-items: center; color: var(--accent); }
+.header-actions { display: flex; gap: 8px; }
+.btn-icon { display: inline-flex; vertical-align: middle; margin-right: 2px; }
+
+.page-card {
+  background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border); border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow); padding: 24px; max-width: 1000px;
+}
 .result-box {
-  background: #f5f7fa;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  padding: 12px;
-  font-size: 12px;
-  max-height: 300px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-  margin-top: 12px;
+  background: rgba(0,0,0,0.03); backdrop-filter: blur(8px);
+  border: 1px solid rgba(0,0,0,0.04); border-radius: 10px;
+  padding: 14px; font-size: 12px; max-height: 300px; overflow: auto;
+  white-space: pre-wrap; word-break: break-all; margin-top: 12px;
+  color: var(--text-secondary);
 }
 </style>

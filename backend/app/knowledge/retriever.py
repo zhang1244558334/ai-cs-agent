@@ -18,7 +18,7 @@ class Retriever:
             vector_results = vector_private + vector_public
         else:
             vector_results = self.vs.search(query, top_k=top_k * 2)
-        keyword_results = self.kr.search(query, top_k=top_k * 2)
+        keyword_results = self.kr.search(query, top_k=top_k * 2, tenant_id=tenant_id)
 
         merged: dict[str, dict] = {}
         for r in vector_results:

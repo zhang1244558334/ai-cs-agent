@@ -1,3 +1,4 @@
+import json
 import re
 
 from app.core.config import settings
@@ -16,10 +17,10 @@ class LogisticsAgent(BaseAgent):
         self.retriever = Retriever(alpha=0.7)
         self.gateway = PlatformGateway()
 
-    async def chat_stream(self, messages: list, order_no: str | None = None):
+    async def chat_stream(self, messages: list, order_no: str | None = None, tenant_id: str = "ecommerce"):
         history = messages[:-1]
         user_msg = messages[-1]["content"] if messages else ""
-        results = await self.retriever.retrieve(user_msg)
+        results = await self.retriever.retrieve(user_msg, tenant_id=tenant_id)
         knowledge = (
             "\n\n".join([r["text"] for r in results]) if results else "未找到相关信息"
         )
@@ -46,24 +47,64 @@ class LogisticsAgent(BaseAgent):
             tracking_text = await self._fetch_tracking(order_no)
             if tracking_text:
                 system_content += f"\n\n实时物流信息：\n{tracking_text}"
+
+        # 生成物流卡片（有订单号且有轨迹数据时）
+        card_data = None
+        if order_no:
+            tracking_info = await self._fetch_tracking_raw(order_no)
+            if tracking_info:
+                card_data = {
+                    "order_no": tracking_info.order_no,
+                    "carrier": tracking_info.carrier,
+                    "tracking_no": tracking_info.tracking_no,
+                    "status": tracking_info.status,
+                    "eta": tracking_info.eta,
+                    "trace": [
+                        {"time": t.time, "node": t.node, "city": t.city}
+                        for t in (tracking_info.trace or [])
+                    ],
+                }
+
         system = {"role": "system", "content": system_content}
         msgs = [system] + history + [{"role": "user", "content": user_msg}]
+
+        # 先发卡片（如果有）
+        if card_data:
+            yield json.dumps(
+                {"type": "card", "card_type": "logistics", "data": card_data},
+                ensure_ascii=False,
+            )
+
         async for token in self.llm.chat_stream(msgs):
-            yield token
+            if token == "[DONE]":
+                yield (
+                    "__retrieval__:"
+                    + json.dumps(
+                        [{"text": r["text"], "score": r.get("score", 0)} for r in results],
+                        ensure_ascii=False,
+                    )
+                )
+                yield "[DONE]"
+            else:
+                yield token
 
     @staticmethod
     def _extract_phone_tail(user_msg: str) -> str | None:
         matches = _PHONE_TAIL_RE.findall(user_msg)
         return matches[-1] if matches else None
 
-    async def _fetch_tracking(self, order_no: str | None) -> str:
+    async def _fetch_tracking_raw(self, order_no: str | None):
+        """返回原始TrackingInfo（供卡片和文本共用）"""
         if order_no is None:
-            return ""
+            return None
         try:
             adapter = self.gateway.get_adapter()
-            info = await adapter.get_tracking(order_no)
+            return await adapter.get_tracking(order_no)
         except Exception:
-            return ""
+            return None
+
+    async def _fetch_tracking(self, order_no: str | None) -> str:
+        info = await self._fetch_tracking_raw(order_no)
         if info is None:
             return "未查询到该订单的物流信息"
         recent = info.trace[-1] if info.trace else None

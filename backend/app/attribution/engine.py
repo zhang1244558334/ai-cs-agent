@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import async_session
 from app.core.llm import LLMClient
 from app.models.handover_log import HandoverLog
+from app.models.message import Message
 
 ATTRIBUTION_TYPES = {
     "A": "知识库缺失",
@@ -126,6 +127,53 @@ class AttributionEngine:
             )
             async with async_session() as db:
                 await db.merge(log)
+                await db.commit()
+            count += 1
+        return count
+
+    async def analyze_flagged_messages(self):
+        async with async_session() as db:
+            result = await db.execute(
+                select(Message).where(Message.metadata.isnot(None))
+            )
+            msgs = result.scalars().all()
+
+        flagged = [
+            m for m in msgs
+            if (m.extra_metadata or {}).get("quality_flag") in ("factual_error", "user_reported")
+            and not (m.extra_metadata or {}).get("attribution_done")
+        ]
+
+        count = 0
+        for msg in flagged:
+            meta = msg.metadata or {}
+            result = await self.analyze(
+                message=msg.content,
+                intent=meta.get("intent"),
+                context_history=[],
+                knowledge_results=meta.get("retrieval_results", []),
+            )
+            # 跳过D类型（正常转接，无需处理）
+            if result["type"] == "D":
+                meta["attribution_done"] = True
+                msg.metadata = meta
+                async with async_session() as db:
+                    await db.merge(msg)
+                    await db.commit()
+                continue
+
+            proposal = self.generate_proposal(
+                attribution_type=result["type"],
+                detail=result["detail"],
+                suggestion=result["suggestion"],
+                confidence=result["confidence"],
+            )
+            self.save_proposal(proposal)
+            # 标记已分析，避免重复
+            meta["attribution_done"] = True
+            msg.metadata = meta
+            async with async_session() as db:
+                await db.merge(msg)
                 await db.commit()
             count += 1
         return count

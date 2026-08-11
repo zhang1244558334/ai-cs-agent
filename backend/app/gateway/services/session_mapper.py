@@ -5,7 +5,8 @@ from sqlalchemy import select
 
 class SessionMapper:
     async def get_or_create(
-        self, platform: str, platform_session_id: str, user_id: str
+        self, platform: str, platform_session_id: str, user_id: str,
+        tenant_id: str = "ecommerce",
     ) -> Session:
         async with async_session() as session:
             result = await session.execute(
@@ -21,6 +22,7 @@ class SessionMapper:
                 platform=platform,
                 platform_session_id=platform_session_id,
                 user_id=user_id,
+                tenant_id=tenant_id,
             )
             session.add(new_sess)
             await session.commit()
