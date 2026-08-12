@@ -3,11 +3,6 @@
 > 一套代码，多平台通用。四级路由 + 多Agent调度 + 知识库RAG + 自我优化闭环。  
 > 已接入闲鱼真实WebSocket消息通道，Bot 7×24自动回复。
 
-[![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688)](https://fastapi.tiangolo.com)
-[![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D)](https://vuejs.org)
-[![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-536DFE)](https://deepseek.com)
-
 ---
 
 ## ✨ 核心亮点
