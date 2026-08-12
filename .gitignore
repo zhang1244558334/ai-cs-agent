@@ -13,3 +13,4 @@ chroma_data/
 .ruff_cache/
 data/
 .coverage
+config/settings.json
