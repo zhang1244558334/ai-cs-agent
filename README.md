@@ -21,6 +21,14 @@
 
 ---
 
+## 📸 界面
+
+| 管理后台 | 闲鱼对话 |
+|---------|---------|
+| *(截图占位)* | *(截图占位)* |
+
+---
+
 ## 🏗 架构
 
 ```
@@ -144,6 +152,18 @@ ai-cs-agent/
 
 ---
 
+## 💰 成本控制
+
+| 路由层级 | 命中率 | 延迟 | 单次成本 | 说明 |
+|----------|:------:|:----:|:--------:|------|
+| 关键词匹配 | ~80% | <1ms | ¥0 | YAML规则，本地执行 |
+| 向量检索 | ~15% | ~10ms | ¥0 | BGE-small-zh 本地推理 |
+| LLM兜底 | ~5% | ~500ms | ¥0.001 | DeepSeek API调用 |
+
+> 日均1000次对话，仅50次调LLM。相比全LLM路由，每月节省约¥285。
+
+---
+
 ## 🛠 技术栈
 
 **后端**：Python 3.10+ / FastAPI / SQLAlchemy(async) / LangGraph / ChromaDB / BGE-small-zh / websockets / Docker
@@ -156,6 +176,36 @@ ai-cs-agent/
 
 ## 📝 开发日志
 
-详见 `CHANGELOG.md` 和 `/home/a/桌面/ai客服智能体研发项目/开发问题日志.md`，记录了从Phase 0到Phase 6的30+个问题及其根因/修复/教训。
+详见 `CHANGELOG.md`，记录了从Phase 0到Phase 6的30+个问题及其根因/修复/教训。
+
+---
+
+## 🔧 典型排错案例
+
+### 扫码登录9次失败（最终放弃）
+
+闲鱼登录流程从"扫码→返回token→换cookie"改为"扫码→iframe→postMessage→浏览器JS设cookie"。纯HTTP和headless浏览器均无法获取sgcookie，Selenium被风控拦截（跳转`identity_verify.htm`人机验证）。投入9种方案后判定此路线已封死，及时止损。
+
+### JSON列修改不保存
+
+`session.extra_metadata['key'] = value`后不写入数据库。根因：SQLAlchemy JSON列通过对象引用（`is`）判断变更，dict内部修改不改变引用。修复：`MutableDict.as_mutable(JSON)`。
+
+### hf-mirror.com超时
+
+模型加载hang在"Retrying in 2s"。根因：BGE模型验证缓存时从hf-mirror.com拉`adapter_config.json`，镜像站宕机。修复：`HF_HUB_OFFLINE=1`强制本地缓存。
+
+---
+
+## 🗺 路线图
+
+- [x] 四级路由 + 6 Agent调度
+- [x] 闲鱼WebSocket真机接入
+- [x] RAG知识库 + 商品自动索引
+- [x] 自我优化闭环（质检→归因→自动修复）
+- [x] 多租户隔离 + 多轮表单引擎
+- [ ] 三模型并行投票（提高回复质量）
+- [ ] SQLite → PostgreSQL（生产化）
+- [ ] Prometheus + Grafana 监控
+- [ ] Token经营模式（按量计费 + 算力券对接）
 
 **License**: MIT
