@@ -80,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick } from 'vue'
 
 const sessions = ref([])
 const expanded = ref(null)
@@ -215,11 +215,17 @@ async function toggle(id) {
   refreshIcons()
 }
 
+let pollTimer = null
+
 onMounted(() => {
   loadSessions()
   window.addEventListener('business-changed', () => {
     loadSessions()
   })
+  pollTimer = setInterval(loadSessions, 10000)
+})
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
 })
 onActivated(() => {
   loadSessions()
