@@ -44,6 +44,9 @@
             <el-button v-if="platformProvider === 'xianyu' && field.key === 'app_key'" size="small" disabled title="扫码登录暂不可用（闲鱼风控升级，请手动粘贴Cookie）">
               <i data-lucide="smartphone" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"></i>扫码登录(暂停)
             </el-button>
+            <el-button v-if="platformProvider === 'xianyu' && field.key === 'app_key' && platformConfig[field.key]" size="small" type="danger" plain @click="clearCookie" :loading="clearingCookie">
+              清空Cookie
+            </el-button>
           </div>
         </el-form-item>
         <el-form-item>
@@ -111,6 +114,7 @@ const qrDataUrl = ref('')
 const qrStatus = ref('')
 const qrError = ref('')
 const qrLoading = ref(false)
+const clearingCookie = ref(false)
 let qrTimer = null
 
 async function startQrLogin() {
@@ -260,6 +264,16 @@ async function save() {
     ElMessage.error('保存失败: ' + (e.message || '网络错误'))
   }
   saving.value = false
+}
+
+async function clearCookie() {
+  clearingCookie.value = true
+  try {
+    platformConfig.value.app_key = ''
+    await save()
+  } finally {
+    clearingCookie.value = false
+  }
 }
 </script>
 
