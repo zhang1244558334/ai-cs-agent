@@ -39,13 +39,52 @@
           <span v-if="currentPlatform" style="margin-left:12px;font-size:12px;color:#999">{{ currentPlatform.description }}</span>
         </el-form-item>
         <el-form-item v-for="field in currentPlatformFields" :key="field.key" :label="field.label">
-          <el-input v-model="platformConfig[field.key]" :type="field.type === 'password' ? 'password' : 'text'" show-password :placeholder="'输入' + field.label" />
+          <div style="display:flex;align-items:center;gap:8px">
+            <el-input v-model="platformConfig[field.key]" :type="field.type === 'password' ? 'password' : 'text'" show-password :placeholder="'输入' + field.label" style="flex:1" />
+            <el-button v-if="platformProvider === 'xianyu' && field.key === 'app_key'" size="small" disabled title="扫码登录暂不可用（闲鱼风控升级，请手动粘贴Cookie）">
+              <i data-lucide="smartphone" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"></i>扫码登录(暂停)
+            </el-button>
+          </div>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="save" :loading="saving">保存设置</el-button>
         </el-form-item>
       </el-form>
     </div>
+
+    <!-- 扫码登录弹窗 -->
+    <el-dialog v-model="qrVisible" title="闲鱼扫码登录" width="380px" :close-on-click-modal="false" @closed="cancelQrLogin">
+      <div style="text-align:center">
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
+          打开<strong>闲鱼App</strong>，点击左上角扫一扫
+        </p>
+        <div v-if="qrStatus === 'error' || qrStatus === 'expired'" style="padding:40px 0;color:var(--text-muted)">
+          <p>{{ qrError || '二维码已过期' }}</p>
+          <el-button type="primary" size="small" @click="startQrLogin" :loading="qrLoading" style="margin-top:12px">重新生成</el-button>
+        </div>
+        <template v-else>
+          <div v-if="qrStatus === 'generating'" style="padding:40px 0;color:var(--accent)">
+            <i data-lucide="loader-2" style="width:14px;height:14px;vertical-align:middle;animation:spin 1s linear infinite"></i>
+            生成二维码中...
+          </div>
+          <img v-else-if="qrDataUrl" :src="qrDataUrl" style="width:260px;height:260px;border-radius:12px;border:1px solid var(--glass-border)" />
+          <div v-if="qrStatus === 'waiting'" style="margin-top:16px;color:var(--accent)">
+            <i data-lucide="loader-2" style="width:14px;height:14px;vertical-align:middle;animation:spin 1s linear infinite"></i>
+            等待扫码...
+          </div>
+          <div v-else-if="qrStatus === 'scanned'" style="margin-top:16px;color:#f59e0b">
+            已扫码，请在手机上确认登录
+          </div>
+          <div v-else-if="qrStatus === 'done'" style="margin-top:16px;color:#10b981">
+            登录成功！
+          </div>
+        </template>
+      </div>
+      <template #footer>
+        <el-button @click="cancelQrLogin">取消</el-button>
+        <el-button v-if="qrStatus === 'done'" type="primary" @click="applyQrLogin">应用Cookie</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -65,6 +104,84 @@ const platformConfig = ref({})
 const platforms = ref([])
 const currentPlatform = computed(() => platforms.value.find(p => p.key === platformProvider.value) || null)
 const currentPlatformFields = computed(() => currentPlatform.value?.fields || [])
+
+// 扫码登录
+const qrVisible = ref(false)
+const qrDataUrl = ref('')
+const qrStatus = ref('')
+const qrError = ref('')
+const qrLoading = ref(false)
+let qrTimer = null
+
+async function startQrLogin() {
+  qrLoading.value = true
+  cancelQrLogin()
+  try {
+    const r = await fetch('/api/admin/platforms/qrcode/start', { method: 'POST' })
+    const d = await r.json()
+    if (d.status === 'generating') {
+      qrStatus.value = 'generating'
+      qrError.value = ''
+      qrVisible.value = true
+      pollQrStatus()  // 轮询直到二维码出来
+    } else if (d.status === 'waiting') {
+      qrDataUrl.value = d.qr_data_url
+      qrStatus.value = 'waiting'
+      qrError.value = ''
+      qrVisible.value = true
+      pollQrStatus()
+    } else {
+      ElMessage.warning(d.message || '启动扫码失败')
+    }
+  } catch (e) {
+    ElMessage.error('启动扫码失败')
+  }
+  qrLoading.value = false
+}
+
+function pollQrStatus() {
+  if (qrTimer) clearInterval(qrTimer)
+  qrTimer = setInterval(async () => {
+    try {
+      const r = await fetch('/api/admin/platforms/qrcode/status')
+      const d = await r.json()
+      if (d.status === 'waiting' && d.qr_data_url && !qrDataUrl.value) {
+        // 轮询拿到了SDK生成的二维码
+        qrDataUrl.value = d.qr_data_url
+      }
+      qrStatus.value = d.status
+      if (d.error) qrError.value = d.error
+      if (d.status === 'done' || d.status === 'error' || d.status === 'expired') {
+        clearInterval(qrTimer)
+        qrTimer = null
+      }
+    } catch (e) {}
+  }, 1500)
+}
+
+async function applyQrLogin() {
+  try {
+    const r = await fetch('/api/admin/platforms/qrcode/apply', { method: 'POST' })
+    const d = await r.json()
+    if (d.status === 'ok') {
+      ElMessage.success('闲鱼登录成功，Cookie已保存')
+      qrVisible.value = false
+      // 重新加载设置
+      loadSettings()
+    } else {
+      ElMessage.error(d.message || '保存失败')
+    }
+  } catch (e) {
+    ElMessage.error('保存Cookie失败')
+  }
+}
+
+function cancelQrLogin() {
+  if (qrTimer) { clearInterval(qrTimer); qrTimer = null }
+  qrVisible.value = false
+  qrStatus.value = ''
+  fetch('/api/admin/platforms/qrcode/cancel', { method: 'POST' }).catch(() => {})
+}
 
 async function loadPlatforms() {
   try {

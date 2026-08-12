@@ -24,6 +24,51 @@ class XianyuBot(XianyuLive):
 
     FALLBACK_REPLY = "抱歉，暂时无法处理您的消息，请稍后再试或联系卖家"
 
+    async def init(self, ws):
+        """重写init：先试get_token，失败用cookie中的_m_h5_tk做fallback"""
+        import time, json
+        from utils.goofish_utils import generate_mid
+
+        token = ''
+        try:
+            data = self.xianyu.get_token()
+            token = data.get('data', {}).get('accessToken', '') if isinstance(data, dict) else ''
+        except Exception:
+            pass
+
+        if not token:
+            # Fallback: 用_m_h5_tk作为token（扫码模式）
+            token = self.cookies.get('_m_h5_tk', '')
+            if not token:
+                raise RuntimeError('闲鱼token获取失败，Bot连接中止')
+
+        msg = {
+            "lwp": "/reg",
+            "headers": {
+                "cache-header": "app-key token ua wv",
+                "app-key": "444e9908a51d1cb236a27862abc769c9",
+                "token": token,
+                "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 DingTalk(2.1.5) OS(Windows/10) Browser(Chrome/133.0.0.0) DingWeb/2.1.5 IMPaaS DingWeb/2.1.5",
+                "dt": "j",
+                "wv": "im:3,au:3,sy:6",
+                "sync": "0,0;0;0;",
+                "did": self.device_id,
+                "mid": generate_mid()
+            }
+        }
+        await ws.send(json.dumps(msg))
+        current_time = int(time.time() * 1000)
+        msg = {
+            "lwp": "/r/SyncStatus/ackDiff",
+            "headers": {"mid": generate_mid()},
+            "body": [{"pipeline":"sync","tooLong2Tag":"PNM,1","channel":"sync",
+                      "topic":"sync","highPts":0,"pts":current_time*1000,
+                      "seq":0,"timestamp":current_time}]
+        }
+        await ws.send(json.dumps(msg))
+        from loguru import logger
+        logger.info('init')
+
     def __init__(self, cookies_str: str):
         super().__init__(cookies_str)
         self._router = None
