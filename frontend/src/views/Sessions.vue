@@ -130,7 +130,10 @@ function refreshIcons() {
 
 async function loadSessions() {
   try {
-    const r = await fetch(`/api/sessions?limit=50`)
+    const tenant = localStorage.getItem('activeBusiness') || ''
+    // ecommerce是总称，不过滤；其他业务（如property）才过滤
+    const tenantParam = (tenant && tenant !== 'ecommerce') ? '&tenant_id=' + tenant : ''
+    const r = await fetch(`/api/sessions?limit=50${tenantParam}`)
     sessions.value = (await r.json()) || []
   } catch (e) {
     sessions.value = []
