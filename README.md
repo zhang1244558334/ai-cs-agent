@@ -152,18 +152,6 @@ ai-cs-agent/
 
 ---
 
-## 💰 成本控制
-
-| 路由层级 | 命中率 | 延迟 | 单次成本 | 说明 |
-|----------|:------:|:----:|:--------:|------|
-| 关键词匹配 | ~80% | <1ms | ¥0 | YAML规则，本地执行 |
-| 向量检索 | ~15% | ~10ms | ¥0 | BGE-small-zh 本地推理 |
-| LLM兜底 | ~5% | ~500ms | ¥0.001 | DeepSeek API调用 |
-
-> 日均1000次对话，仅50次调LLM。相比全LLM路由，每月节省约¥285。
-
----
-
 ## 🛠 技术栈
 
 **后端**：Python 3.10+ / FastAPI / SQLAlchemy(async) / LangGraph / ChromaDB / BGE-small-zh / websockets / Docker
