@@ -130,7 +130,7 @@ function refreshIcons() {
 
 async function loadSessions() {
   try {
-    const r = await fetch(`/api/sessions?limit=50&tenant_id=${localStorage.getItem('activeBusiness') || 'ecommerce'}`)
+    const r = await fetch(`/api/sessions?limit=50`)
     sessions.value = (await r.json()) || []
   } catch (e) {
     sessions.value = []

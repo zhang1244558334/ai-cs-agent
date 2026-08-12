@@ -14,15 +14,12 @@ class BatchDeleteRequest(BaseModel):
 
 
 @router.get("/api/sessions")
-async def list_sessions(limit: int = 20, offset: int = 0, tenant_id: str = "ecommerce"):
+async def list_sessions(limit: int = 20, offset: int = 0, tenant_id: str | None = None):
     async with async_session() as db:
-        result = await db.execute(
-            select(Session)
-            .where(Session.tenant_id == tenant_id)
-            .order_by(Session.updated_at.desc())
-            .offset(offset)
-            .limit(limit)
-        )
+        stmt = select(Session).order_by(Session.updated_at.desc())
+        if tenant_id:
+            stmt = stmt.where(Session.tenant_id == tenant_id)
+        result = await db.execute(stmt.offset(offset).limit(limit))
         sessions = result.scalars().all()
         return [
             {
