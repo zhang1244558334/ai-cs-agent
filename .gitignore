@@ -18,3 +18,6 @@ reports/
 *_backup_*/
 scripts/xianyu_scan_*.py
 scripts/_diag_*.py
+
+# 逆向用原始打包JS(4.3M，代码未引用)
+backend/app/platforms/xianyu_sdk/static/goofish_js_origin_version_2.js

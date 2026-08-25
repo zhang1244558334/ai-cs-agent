@@ -56,7 +56,8 @@
 pip install -e .
 
 # 2. 配置
-cp .env.example .env   # 填入 DeepSeek API Key
+cp .env.example .env                              # 填入 DeepSeek API Key
+cp config/settings.example.json config/settings.json   # 平台配置（闲鱼 Cookie 等运行时填）
 
 # 3. 初始化数据库 + 灌入知识库
 alembic upgrade head
@@ -66,14 +67,17 @@ python scripts/seed_intent_examples.py
 # 4. 启动 ChromaDB
 docker compose up -d
 
-# 5. 启动后端
-HF_HUB_OFFLINE=1 uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+# 5. 启动后端（首次运行需联网下载 BGE 向量模型，之后可加 HF_HUB_OFFLINE=1 离线启动）
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 
 # 6. 启动前端（另一个终端）
 cd frontend && npm install && npm run dev
 ```
 
 打开 http://localhost:5173 进入管理后台。
+
+> **关于闲鱼 SDK**：`backend/app/platforms/xianyu_sdk/` 基于开源项目 [cv-cat/XianYuApis](https://github.com/cv-cat/XianYuApis) 二次开发，已随仓库一并提供，无需额外拉取。其中 4.3M 的原始打包 JS（`static/goofish_js_origin_version_2.js`）未被代码引用，已从版本控制排除。
+
 
 ---
 

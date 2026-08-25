@@ -29,10 +29,11 @@ def _patched_findSoname_ldconfig(name):
 ctypes.util._findSoname_ldconfig = _patched_findSoname_ldconfig
 
 # 现在安全导入并启动Bot
-import json, asyncio, sys
-sys.path.insert(0, '/home/a/桌面/ai-cs-agent')
+import json, asyncio, sys, os
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
-with open('/home/a/桌面/ai-cs-agent/config/settings.json') as f:
+with open(os.path.join(PROJECT_ROOT, 'config', 'settings.json')) as f:
     s = json.load(f)
 cfg = json.loads(s.get('platform_config', '{}'))
 cookies = cfg.get('app_key', '')
