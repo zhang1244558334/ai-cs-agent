@@ -78,6 +78,8 @@ class XianyuBot(XianyuLive):
         self._replied_ids: set = set()
         self._known_cids: dict = {}  # cid → user_id，用于重连后消息补拉
         self._item_cache: dict = {}  # item_id → raw_itemDO dict，避免重复调API
+        self._item_negative_cache: dict = {}  # item_id → 失败时间戳，风控退避用
+        self._item_negative_ttl: float = 600.0  # 负缓存10分钟，期间不再调API
         self._reconnect_count: int = 0  # 连续重连失败计数，用于Cookie过期检测
 
     def _init_ai(self):
@@ -236,9 +238,51 @@ class XianyuBot(XianyuLive):
         raw, _ = self._fetch_item_info_full(item_id)
         return raw
 
+    def _fetch_item_from_chroma_fallback(self, item_id: str) -> dict:
+        """商品API被风控/限流时，从ChromaDB历史索引兜底重建item dict"""
+        try:
+            import chromadb
+            from chromadb.config import Settings as ChromaSettings
+            c = chromadb.HttpClient(host='localhost', port=8001,
+                                    settings=ChromaSettings(anonymized_telemetry=False))
+            col = c.get_collection('knowledge_base')
+            res = col.get(where={'source': {'$eq': f'xianyu_item_{item_id}'}})
+            docs = res.get('documents', [])
+            if not docs:
+                return {}
+            item = {}
+            for d in docs:
+                if '答：' not in d:
+                    continue
+                ans = d.split('答：', 1)[-1].strip()
+                if '商品标题' in d:
+                    item['title'] = ans
+                elif '多少钱' in d or '什么价格' in d:
+                    item['soldPrice'] = ans.replace('¥', '').strip()
+                elif '什么材质' in d:
+                    item['material'] = ans
+                elif '商品描述' in d:
+                    item['desc'] = ans
+                elif '什么分类' in d:
+                    item['category'] = ans
+            if item.get('category'):
+                item['itemLabelExtList'] = [{'valueText': item['category']}]
+            return item
+        except Exception as e:
+            print(f"[XianyuBot] Chroma兜底失败 item_id={item_id}: {e}")
+            return {}
+
     def _fetch_item_info_full(self, item_id: str) -> tuple:
         """调用闲鱼API获取商品详情，返回 (raw_itemDO_dict, formatted_text)"""
         try:
+            import time as _time
+            _now = _time.time()
+            # 负缓存：风控/失败时退避，避免高频轰炸触发闲鱼限流
+            _neg_ts = self._item_negative_cache.get(item_id)
+            if _neg_ts and _now - _neg_ts < self._item_negative_ttl:
+                print(f"[XianyuBot] _fetch_item_info_full: item_id={item_id} 风控退避中(负缓存剩余{int(self._item_negative_ttl - (_now - _neg_ts))}s), 跳过API")
+                return {}, ""
+
             # 优先从缓存读取，避免重复调API被限流
             if item_id in self._item_cache:
                 item = self._item_cache[item_id]
@@ -262,10 +306,20 @@ class XianyuBot(XianyuLive):
                 item = info.get("data", {}).get("itemDO", {})
                 if item:
                     self._item_cache[item_id] = item
+                    self._item_negative_cache.pop(item_id, None)  # 成功后清除负缓存
                     print(f"[XianyuBot] _fetch_item_info_full: itemDO非空, keys={list(item.keys())}, 已缓存")
                 else:
-                    print(f"[XianyuBot] _fetch_item_info_full: itemDO为空或不存在! "
-                          f"info['data']={json.dumps(info.get('data'), ensure_ascii=False)[:300] if 'data' in info else 'NO_DATA_KEY'}")
+                    # 商品API被风控/限流，尝试从ChromaDB历史索引兜底
+                    _fb = self._fetch_item_from_chroma_fallback(item_id)
+                    if _fb:
+                        item = _fb
+                        self._item_cache[item_id] = item
+                        print(f"[XianyuBot] _fetch_item_info_full: 商品API风控，Chroma兜底命中 item_id={item_id} "
+                              f"title={item.get('title','')[:20]} price={item.get('soldPrice','')}")
+                    else:
+                        self._item_negative_cache[item_id] = _now  # 风控/失败，写负缓存退避
+                        print(f"[XianyuBot] _fetch_item_info_full: itemDO为空且Chroma无兜底! 写负缓存退避{int(self._item_negative_ttl)}s "
+                              f"info['data']={json.dumps(info.get('data'), ensure_ascii=False)[:300] if 'data' in info else 'NO_DATA_KEY'}")
 
             # formatted_text 每次都要重新生成（不同场景可能需要不同格式）
             title = item.get("title", "")
