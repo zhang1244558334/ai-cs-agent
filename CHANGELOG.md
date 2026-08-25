@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## 2026-08-25 — 开源可用性修复：闲鱼 SDK 从未真正上传 + 消除硬编码路径
+
+### Fixed — 闲鱼 SDK 在 GitHub 上一直是空目录（最严重）
+
+- `backend/app/platforms/xianyu_sdk/` 是 **submodule 残留**：git 索引里是 gitlink（mode 160000, commit 5ce38ab），但仓库根本没有 `.gitmodules` 声明 URL
+- 后果：**任何人 clone 主仓库拿到的都是一个空目录**，`git submodule update --init` 也无从下手（无 URL）。而该目录被 5 处代码引用（adapters.py、xianyu_bot.py、reindex_products.py、xianyu_login.py、test_xianyu.py），缺失即闲鱼功能整体不可用——项目核心卖点在线上等于不存在
+- 处理：`git rm --cached` 去掉 gitlink，作为普通目录纳入主仓库，20 个文件已实际上传
+- 排除 `static/goofish_js_origin_version_2.js`（4.3M，逆向时留存的原始 webpack 打包文件，代码仅引用精简版 `goofish_js_version_2.js`）
+- README 注明 SDK 来源：基于开源项目 [cv-cat/XianYuApis](https://github.com/cv-cat/XianYuApis) 二次开发
+
+### Fixed — 硬编码本机绝对路径（12 处 → 0）
+
+改动文件（统一按各自层级算准项目根，风格对齐已有正确写法 `admin.py`）：
+
+- `backend/app/platforms/xianyu_sdk/qrlogin.py`（5 层 dirname）
+- `backend/app/platforms/xianyu_sdk/login2.py`（5 层）
+- `backend/app/platforms/xianyu_sdk/goofish_apis.py`（5 层）
+- `scripts/run_xianyu_bot.py`（2 层，用 abspath 兼容相对路径调用）
+
+桌面类临时文件路径（二维码图片、cookie 文本）改 `os.path.expanduser("~")` 拼接。业务逻辑（Cookie 处理、闲鱼 API、Selenium、重试）未改动。
+
+### Security
+
+- `config/settings.json` 移出版本控制（含闲鱼真实 Cookie：sgcookie / cookie2 / unb / _tb_token_ 全套）。该文件此前虽写入 .gitignore，但**已被追踪的文件 gitignore 不生效**，一次 `git add -A` 即会公开泄露账号凭证
+- 扫描全部提交历史确认 Cookie 从未泄露过
+- 新增 `config/settings.example.json` 空模板
+
+### Changed — README 快速开始修正
+
+- 补 `cp config/settings.example.json config/settings.json` 步骤
+- 启动命令去掉 `HF_HUB_OFFLINE=1`（那是本机离线用的；别人首次运行需联网下载 BGE 向量模型，带此变量会直接报错）
+
+### Removed — 仓库瘦身（81 个文件移出版本控制）
+
+- 4 个前端备份目录 `frontend_backup_*`（79 个文件，比正式 frontend 的 21 个文件还多）
+- 2 份工作周报 `reports/weekly_*.md`
+- 9 个已废弃的扫码登录脚本 + 1 个 Cookie 诊断脚本（扫码方案 2026-08-12 已放弃）
+- `admin.py` 中 143 行扫码登录死代码（回退，前端无任何引用）
+- 根目录 5 个设计草稿 md 归入 `docs/design/`
+
+### Verified — 端到端实测（本次修改后）
+
+| 项目 | 结果 |
+|---|---|
+| 4 个改动文件的 PROJECT_ROOT 解析 | 全部 = 项目根，`config/settings.json` 可读 |
+| 后端启动 | HTTP 200，ChromaDB 正常 |
+| 知识库加载 | 13 个 FAQ 文档全部就绪 |
+| RAG 检索「发货要多久」 | 命中真实条目，相似度 0.377 |
+| 端到端对话 | 意图路由 = logistics，LLM 真实回复，SSE 流正常，DB 落库正确 |
+| 闲鱼适配器 | 已注册，平台列表与配置字段正常 |
+| 全新 clone 后语法检查 | 0 错误 |
+
+> 注：闲鱼真实收发消息需重新获取 Cookie（平台 Cookie 有效期有限，非代码问题）。
+
 ### Added
 - 项目初始脚手架搭建
 - 目录骨架、pyproject.toml、Makefile、Docker Compose、配置文件
