@@ -14,3 +14,7 @@ chroma_data/
 data/
 .coverage
 config/settings.json
+reports/
+*_backup_*/
+scripts/xianyu_scan_*.py
+scripts/_diag_*.py
